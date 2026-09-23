@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { api, type Ward } from '../api/client';
 import ScheduleView from './ScheduleView';
+import RequestsView from './RequestsView';
+import PersonnelView from './PersonnelView';
 import { THAI_MONTHS } from '../data';
 import {
   Calendar, LayoutDashboard, DollarSign, Users, FileText, Send, LogOut, Loader2, Construction,
@@ -100,6 +102,10 @@ export default function AppShell() {
             <div className="grid place-items-center py-20 text-slate-400"><Loader2 className="w-6 h-6 animate-spin" /></div>
           ) : tab === 'schedule' ? (
             <ScheduleView role={user.role} wards={wards} wardId={wardId} year={year} month={month} />
+          ) : tab === 'requests' ? (
+            <RequestsView role={user.role} wardId={wardId} year={year} month={month} myEmployeeId={user.employeeId} />
+          ) : tab === 'personnel' ? (
+            <PersonnelView wardId={wardId} />
           ) : (
             <Placeholder tab={tab} />
           )}
