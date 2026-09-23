@@ -1,0 +1,157 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Noto+Sans+Thai:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+/*
+ * Typography follows SATI_CI.md §4.
+ * Licensed brand faces (Neulis Sans / Aktiv Grotesk) are not web-available,
+ * so we use the CI-approved digital fallbacks:
+ *   Latin: Inter · Thai: Noto Sans Thai
+ */
+@theme {
+  --font-sans: "Inter", "Noto Sans Thai", ui-sans-serif, system-ui, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  --font-display: "Inter", "Noto Sans Thai", ui-sans-serif, system-ui, sans-serif;
+  
+  /* Sati Brand CI Color Tokens */
+  --color-sati-space: #0F3575;
+  --color-sati-azure: #266BFF;
+  --color-sati-aqua: #8BFFFF;
+
+  /* Neutrals */
+  --color-white: #FFFFFF;
+  --color-platinum: #E7EBF0;
+  --color-sati-mist: #C3CCD9;
+  --color-sati-slate: #5B7290;
+  --color-charcoal: #36454F;
+  --color-sati-ink: #1A2230;
+
+  /* Semantic */
+  --color-success: #00B894;
+  --color-success-warm: #22A94E;
+  --color-warning: #F59E0B;
+  --color-warning-deep: #F97316;
+  --color-error: #E5484D;
+  --color-error-cool: #E5326E;
+  --color-info: #266BFF;
+
+  /* Warm accents */
+  --color-sati-sand: #EFE7D6;
+  --color-sati-apricot: #FBC99D;
+  --color-sati-sun: #FACC15;
+  --color-sati-gold: #C9A227;
+  --color-sati-clay: #C2674B;
+
+  /* Cool accents */
+  --color-sati-sky: #6FA8FF;
+  --color-sati-indigo: #4F46E5;
+  --color-sati-violet: #7C5CFF;
+  --color-sati-teal: #14B8A6;
+  --color-sati-deep: #0A2350;
+  
+  --color-gold-50: #fefcf0;
+  --color-gold-100: #fdf8db;
+  --color-gold-200: #faf0b4;
+  --color-gold-300: #f5e182;
+  --color-gold-400: #edd053;
+  --color-gold-500: #dfb227;
+  --color-gold-600: #c1911c;
+  --color-gold-700: #9e6f18;
+  --color-gold-800: #805718;
+  --color-gold-900: #6a4718;
+}
+
+/* Luxury high-end styling */
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  background-color: #fafafb; /* Warm modern soft gray */
+  color: #1A2230; /* Sati Ink high contrast text */
+  font-family: "Inter", "Noto Sans Thai", ui-sans-serif, system-ui, "Helvetica Neue", Arial, sans-serif;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Beautiful ultra-thin premium scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(15, 53, 117, 0.15);
+  border-radius: 9999px;
+  border: 1px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(38, 107, 255, 0.4);
+}
+
+/* Executive glass cards and glowing transitions */
+.premium-card {
+  background: #ffffff;
+  border: 1px solid rgba(195, 204, 217, 0.4);
+  box-shadow: 0 4px 20px -2px rgba(26, 34, 48, 0.02), 0 2px 6px -1px rgba(26, 34, 48, 0.02);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.premium-card:hover {
+  border-color: rgba(38, 107, 255, 0.25);
+  box-shadow: 0 10px 25px -5px rgba(26, 34, 48, 0.04), 0 8px 12px -3px rgba(26, 34, 48, 0.02);
+}
+
+/* Sleek luxury gradient background accents */
+.luxury-header-gradient {
+  background: linear-gradient(135deg, #0F3575 0%, #0A2350 50%, #1A2230 100%);
+}
+
+.gold-border-accent {
+  border-image: linear-gradient(to right, #266BFF, #8BFFFF, #0F3575) 1;
+}
+
+/* Active Navigation Premium Accent Glimmer with Sati Azure & Sati Aqua */
+.nav-glow-active {
+  position: relative;
+}
+.nav-glow-active::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 15%;
+  height: 70%;
+  width: 3.5px;
+  background: linear-gradient(to bottom, #8BFFFF, #266BFF);
+  border-radius: 0 4px 4px 0;
+  box-shadow: 0 0 10px rgba(38, 107, 255, 0.5);
+}
+
+/* Elegant micro-interactions */
+.premium-btn {
+  position: relative;
+  overflow: hidden;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.premium-btn:active {
+  transform: scale(0.98);
+}
+
+/* Clean print style support */
+@media print {
+  aside, header, nav, section, button, .no-print, .premium-btn {
+    display: none !important;
+  }
+  main, .print-target {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+  body {
+    background-color: white !important;
+    color: black !important;
+  }
+}
