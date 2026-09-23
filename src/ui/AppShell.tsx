@@ -111,7 +111,7 @@ export default function AppShell() {
           ) : tab === 'finance' ? (
             <FinanceView wardName={wards.find((w) => w.id === wardId)?.name ?? ''} wardId={wardId} year={year} month={month} />
           ) : tab === 'documents' ? (
-            <DocumentsView wardName={wards.find((w) => w.id === wardId)?.name ?? ''} wardId={wardId} year={year} month={month} />
+            <DocumentsView wardName={wards.find((w) => w.id === wardId)?.name ?? ''} wardPhone={wards.find((w) => w.id === wardId)?.phone} wardId={wardId} year={year} month={month} />
           ) : (
             <Placeholder tab={tab} />
           )}
