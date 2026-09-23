@@ -10,7 +10,7 @@
  */
 import { db, schema, runMigrations } from './db/index.js';
 import { hashPassword } from './auth.js';
-import { eq, sql } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 
 const PASSWORD = 'Sati@1234';
 
@@ -95,6 +95,49 @@ export async function seed() {
   ];
   for (const u of users) {
     await db.insert(schema.users).values({ ...u, passwordHash: hash }).onConflictDoNothing({ target: schema.users.email });
+  }
+
+  // ---- sample roster for demo (U01, 2569/07) — idempotent ------------------
+  const SY = 2569, SM = 7, ceY = SY - 543; // July 2026
+  const u01 = wardByCode['U01'];
+  const existingRoster = await db.select().from(schema.rosters)
+    .where(and(eq(schema.rosters.wardId, u01), eq(schema.rosters.year, SY), eq(schema.rosters.month, SM)));
+  if (u01 && existingRoster.length === 0) {
+    // lock working calendar
+    await db.insert(schema.workingCalendars)
+      .values({ wardId: u01, year: SY, month: SM, workingDays: 22, locked: true, lockedAt: new Date() })
+      .onConflictDoNothing({ target: [schema.workingCalendars.wardId, schema.workingCalendars.year, schema.workingCalendars.month] });
+
+    const rosterRows = await db.insert(schema.rosters)
+      .values({ wardId: u01, year: SY, month: SM, status: 'approved', note: 'เบิกตามเวลาที่ขึ้นปฏิบัติงานจริง', approvedAt: new Date() })
+      .onConflictDoNothing({ target: [schema.rosters.wardId, schema.rosters.year, schema.rosters.month] })
+      .returning();
+    const rosterId = rosterRows[0]?.id;
+
+    if (rosterId) {
+      const u01emps = await db.select().from(schema.employees).where(eq(schema.employees.homeWardId, u01));
+      const daysInMonth = new Date(ceY, SM, 0).getDate();
+      const otDays = [3, 10, 17, 24];       // BD
+      const holidayOtDays = [6, 13, 20];    // ชot (weekend duty)
+      const cellValues: any[] = [];
+      for (const emp of u01emps) {
+        for (let d = 1; d <= daysInMonth; d++) {
+          const wd = new Date(ceY, SM - 1, d).getDay();
+          const weekend = wd === 0 || wd === 6;
+          const normalCode = weekend ? 'ออฟ' : 'ช';
+          let otCode: string | null = null;
+          if (otDays.includes(d)) otCode = 'BD';
+          else if (holidayOtDays.includes(d)) otCode = 'ชot';
+          cellValues.push({ rosterId, employeeId: emp.id, day: d, normalCode, otCode });
+        }
+      }
+      if (cellValues.length) await db.insert(schema.rosterCells).values(cellValues);
+
+      await db.insert(schema.rosterSigners).values([
+        { rosterId, ordinal: 1, name: 'นางสาววรรณทิพย์  รีพล', title: 'หัวหน้ากลุ่มงานการเงิน', signerRole: 'controller' },
+        { rosterId, ordinal: 2, name: 'นางนฤมล  ศรีสรรพ์', title: 'รองผู้อำนวยการฝ่ายบริหาร', signerRole: 'approver' },
+      ]);
+    }
   }
 
   console.log('Seed complete. Wards:', wardRows.length, '| Positions:', posRows.length);
