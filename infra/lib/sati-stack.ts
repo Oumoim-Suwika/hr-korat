@@ -56,7 +56,7 @@ export class SatiStack extends cdk.Stack {
 
     // ---- database ---------------------------------------------------------
     const db = new rds.DatabaseCluster(this, 'Db', {
-      engine: rds.DatabaseClusterEngine.auroraPostgres({ version: rds.AuroraPostgresEngineVersion.VER_16_4 }),
+      engine: rds.DatabaseClusterEngine.auroraPostgres({ version: rds.AuroraPostgresEngineVersion.of('16.8', '16') }),
       vpc,
       vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
       serverlessV2MinCapacity: 0.5,
@@ -96,14 +96,16 @@ export class SatiStack extends cdk.Stack {
         target: 'node20',
         sourceMap: true,
         // In Lambda runtime / not needed in prod:
-        externalModules: ['@aws-sdk/*', '@electric-sql/pglite', 'pg-native'],
+        // Dev-only DB driver (PGlite) must stay external so its static import
+        // of @electric-sql/pglite is never linked in the prod (pg) bundle.
+        externalModules: ['@aws-sdk/*', '@electric-sql/pglite', 'drizzle-orm/pglite', 'pg-native'],
         // esbuild banner so ESM can use require() if any dep needs it
         banner: "import { createRequire } from 'module'; const require = createRequire(import.meta.url);",
       },
     });
     dbSecret.grantRead(apiFn);
     jwtSecret.grantRead(apiFn);
-    db.connections.allowDefaultPortFrom(apiFn, 'API Lambda -> Aurora');
+    db.connections.allowDefaultPortFrom(apiFn, 'API Lambda to Aurora');
 
     // ---- HTTP API + custom domain ----------------------------------------
     const apiDomain = new apigw.DomainName(this, 'ApiDomain', {
