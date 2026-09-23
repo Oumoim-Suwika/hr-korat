@@ -19,9 +19,12 @@ let rawExec: (sql: string) => Promise<void>;
 if (driver === 'pg') {
   const { drizzle } = await import('drizzle-orm/node-postgres');
   const { Pool } = await import('pg');
+  // Prefer a full DATABASE_URL; otherwise fall back to standard PG* env vars
+  // (PGHOST/PGPORT/PGUSER/PGPASSWORD/PGDATABASE) which node-postgres reads
+  // automatically — this is how the Aurora secret is injected on Fargate.
   const url = process.env.DATABASE_URL;
-  if (!url) throw new Error('DATABASE_URL is required when DB_DRIVER=pg');
-  const pool = new Pool({ connectionString: url });
+  const pool = url ? new Pool({ connectionString: url, ssl: { rejectUnauthorized: false } })
+                   : new Pool({ ssl: { rejectUnauthorized: false } });
   db = drizzle(pool, { schema });
   rawExec = async (sql: string) => { await pool.query(sql); };
 } else {
