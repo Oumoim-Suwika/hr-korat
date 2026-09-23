@@ -1,5 +1,27 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Noto+Sans+Thai:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Noto+Sans+Thai:wght@300;400;500;600;700;800;900&family=Sarabun:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
+
+/* ---- Government form print (ตราครุฑ) ---------------------------------- */
+/* Screen: the printable sheet is hidden until the user prints. */
+.print-sheet { display: none; }
+
+@media print {
+  @page { size: A4 landscape; margin: 8mm; }
+  body * { visibility: hidden; }
+  .print-sheet, .print-sheet * { visibility: visible; }
+  .print-sheet { display: block; position: absolute; inset: 0; width: 100%; }
+  .no-print { display: none !important; }
+}
+
+/* TH Sarabun-style face for official documents (feedback: TH Sarabun IT9/PSK).
+   'Sarabun' (Google Fonts) is the web-available equivalent; for pixel-exact
+   TH Sarabun New, install the font locally and it will be used first. */
+.gov-form {
+  font-family: 'TH Sarabun New', 'TH SarabunPSK', 'Sarabun', 'Noto Sans Thai', sans-serif;
+  color: #000;
+}
+.gov-form table { border-collapse: collapse; width: 100%; }
+.gov-form th, .gov-form td { border: 1px solid #000; padding: 1px 2px; }
 
 /*
  * Typography follows SATI_CI.md §4.

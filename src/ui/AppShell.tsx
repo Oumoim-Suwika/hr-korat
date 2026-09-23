@@ -4,6 +4,8 @@ import { api, type Ward } from '../api/client';
 import ScheduleView from './ScheduleView';
 import RequestsView from './RequestsView';
 import PersonnelView from './PersonnelView';
+import FinanceView from './FinanceView';
+import DocumentsView from './DocumentsView';
 import { THAI_MONTHS } from '../data';
 import {
   Calendar, LayoutDashboard, DollarSign, Users, FileText, Send, LogOut, Loader2, Construction,
@@ -106,6 +108,10 @@ export default function AppShell() {
             <RequestsView role={user.role} wardId={wardId} year={year} month={month} myEmployeeId={user.employeeId} />
           ) : tab === 'personnel' ? (
             <PersonnelView wardId={wardId} />
+          ) : tab === 'finance' ? (
+            <FinanceView wardName={wards.find((w) => w.id === wardId)?.name ?? ''} wardId={wardId} year={year} month={month} />
+          ) : tab === 'documents' ? (
+            <DocumentsView wardName={wards.find((w) => w.id === wardId)?.name ?? ''} wardId={wardId} year={year} month={month} />
           ) : (
             <Placeholder tab={tab} />
           )}

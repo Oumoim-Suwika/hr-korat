@@ -5,7 +5,8 @@ import {
 } from '../api/client';
 import { SHIFT_TYPES as SHIFT_META, THAI_MONTHS, THAI_DAYS_SHORT } from '../data';
 import type { UserRole } from '../api/client';
-import { Lock, LockOpen, Save, Send, CheckCircle2, Eraser, Loader2, Users } from 'lucide-react';
+import { Lock, LockOpen, Save, Send, CheckCircle2, Eraser, Loader2, Users, Printer } from 'lucide-react';
+import PrintableRoster from './PrintableRoster';
 
 const META = Object.fromEntries(SHIFT_META.map((s) => [s.code, s]));
 const NORMAL_BRUSH = ['ช', 'บ', 'ด', 'ออฟ'];
@@ -198,6 +199,7 @@ export default function ScheduleView({ role, wards, wardId, year, month }: Props
           {canEdit && <button onClick={save} disabled={saving} className="flex items-center gap-1.5 text-sm text-white bg-[#0F3575] px-3 py-2 rounded-lg hover:bg-[#0c2a5e] disabled:opacity-60">{saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}บันทึก</button>}
           {canEdit && roster && roster.status === 'draft' && <button onClick={submit} className="flex items-center gap-1.5 text-sm text-amber-700 bg-amber-50 border border-amber-200 px-3 py-2 rounded-lg"><Send className="w-4 h-4" />ส่งอนุมัติ</button>}
           {canApprove && roster && roster.status === 'pending_approval' && <button onClick={approve} className="flex items-center gap-1.5 text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-2 rounded-lg"><CheckCircle2 className="w-4 h-4" />อนุมัติ</button>}
+          <button onClick={() => window.print()} className="flex items-center gap-1.5 text-sm text-slate-700 bg-white border border-slate-300 px-3 py-2 rounded-lg hover:bg-slate-50"><Printer className="w-4 h-4" />พิมพ์ฟอร์ม (PDF)</button>
         </div>
       </div>
 
@@ -286,6 +288,12 @@ export default function ScheduleView({ role, wards, wardId, year, month }: Props
       )}
 
       {employees.length === 0 && !loading && <p className="text-sm text-slate-400 text-center py-6">ยังไม่มีบุคลากรในกลุ่มงานนี้</p>}
+
+      {/* Hidden on screen; rendered only when printing (ตราครุฑ government form) */}
+      <PrintableRoster
+        wardName={wardName} month={month} year={year} ceYear={ceYear} days={days}
+        employees={employees} cells={cells} signers={signers} note={roster?.note ?? null}
+      />
     </div>
   );
 }

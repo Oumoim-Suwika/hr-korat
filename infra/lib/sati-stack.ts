@@ -130,11 +130,23 @@ export class SatiStack extends cdk.Stack {
       removalPolicy: cdk.RemovalPolicy.DESTROY,
       autoDeleteObjects: true,
     });
+    // API origin = the HTTP API execute-api endpoint (so the whole app lives on
+    // ONE domain: the SPA is served from S3, and /api/* is proxied to Lambda).
+    const apiOrigin = new origins.HttpOrigin(`${httpApi.apiId}.execute-api.${this.region}.amazonaws.com`);
+    const apiBehavior: cf.BehaviorOptions = {
+      origin: apiOrigin,
+      viewerProtocolPolicy: cf.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+      allowedMethods: cf.AllowedMethods.ALLOW_ALL,
+      cachePolicy: cf.CachePolicy.CACHING_DISABLED,
+      originRequestPolicy: cf.OriginRequestPolicy.ALL_VIEWER_EXCEPT_HOST_HEADER,
+    };
+
     const distribution = new cf.Distribution(this, 'Cdn', {
       defaultBehavior: {
         origin: origins.S3BucketOrigin.withOriginAccessControl(siteBucket),
         viewerProtocolPolicy: cf.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
       },
+      additionalBehaviors: { '/api/*': apiBehavior },
       domainNames: [domainName],
       certificate: siteCert,
       defaultRootObject: 'index.html',

@@ -1,6 +1,8 @@
 /** Typed client for the Sati backend API. */
 
-const API_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:4000';
+// Empty string = same-origin (production: CloudFront routes /api/* to Lambda).
+// Local dev overrides via .env.development (VITE_API_URL=http://localhost:4000).
+const API_URL = (import.meta as any).env?.VITE_API_URL ?? '';
 const TOKEN_KEY = 'sati_token';
 
 export function getToken(): string | null {
