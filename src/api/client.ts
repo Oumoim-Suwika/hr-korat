@@ -108,6 +108,37 @@ export const api = {
     request<{ request: RequestItem }>('POST', '/api/requests', payload).then((r) => r.request),
   decideRequest: (id: number, decision: 'approved' | 'rejected') =>
     request<{ request: RequestItem }>('POST', `/api/requests/${id}/decide`, { decision }).then((r) => r.request),
+
+  // audit
+  auditLogs: () => request<{ logs: any[] }>('GET', '/api/audit-logs').then((r) => r.logs),
+
+  // users (admin)
+  users: () => request<{ users: any[] }>('GET', '/api/users').then((r) => r.users),
+  createUser: (u: { email: string; displayName: string; password: string; role: string; wardId?: number | null }) =>
+    request<{ user: any }>('POST', '/api/users', u).then((r) => r.user),
+
+  // wards CRUD
+  createWard: (w: { code: string; name: string; building?: string | null; phone?: string | null; conditions?: string | null }) =>
+    request<{ ward: Ward }>('POST', '/api/wards', w).then((r) => r.ward),
+  updateWard: (id: number, w: Partial<{ name: string; building: string | null; phone: string | null; conditions: string | null }>) =>
+    request<{ ward: Ward }>('PATCH', `/api/wards/${id}`, w).then((r) => r.ward),
+
+  // employees create / import
+  createEmployee: (e: any) => request<{ employee: Employee }>('POST', '/api/employees', e).then((r) => r.employee),
+  importEmployees: (employees: any[]) => request<{ imported: number }>('POST', '/api/employees/import', { employees }).then((r) => r.imported),
+
+  // shift types upsert
+  upsertShiftType: (s: any) => request<{ shiftType: ShiftType }>('POST', '/api/shift-types', s).then((r) => r.shiftType),
+
+  // staffing
+  getStaffing: (wardId: number) => request<{ staffing: any[] }>('GET', `/api/staffing?wardId=${wardId}`).then((r) => r.staffing),
+  setStaffing: (wardId: number, items: { level: string; shiftCode: string; count: number }[]) =>
+    request<{ ok: boolean }>('PUT', '/api/staffing', { wardId, items }),
+
+  // holidays
+  getHolidays: (year: number) => request<{ holidays: any[] }>('GET', `/api/holidays?year=${year}`).then((r) => r.holidays),
+  addHoliday: (h: { year: number; date: string; name: string }) => request<{ holiday: any }>('POST', '/api/holidays', h).then((r) => r.holiday),
+  deleteHoliday: (id: number) => request<{ ok: boolean }>('DELETE', `/api/holidays/${id}`),
 };
 
 export { API_URL };

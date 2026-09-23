@@ -101,6 +101,22 @@ CREATE TABLE IF NOT EXISTS wards (
   active boolean NOT NULL DEFAULT true
 );
 CREATE UNIQUE INDEX IF NOT EXISTS wards_code_idx ON wards (code);
+ALTER TABLE wards ADD COLUMN IF NOT EXISTS conditions text;
+
+CREATE TABLE IF NOT EXISTS staffing_requirements (
+  id serial PRIMARY KEY,
+  ward_id integer NOT NULL REFERENCES wards(id) ON DELETE CASCADE,
+  level text NOT NULL,
+  shift_code text NOT NULL,
+  count integer NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS holidays (
+  id serial PRIMARY KEY,
+  year integer NOT NULL,
+  date text NOT NULL,
+  name text NOT NULL
+);
 
 CREATE TABLE IF NOT EXISTS positions (
   id serial PRIMARY KEY,

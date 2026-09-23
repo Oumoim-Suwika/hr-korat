@@ -257,4 +257,122 @@ app.post('/api/requests/:id/decide', requireAuth, requireRole('supervisor', 'fin
   return c.json({ request: rows[0] });
 });
 
+// ---- audit logs -------------------------------------------------------------
+app.get('/api/audit-logs', requireAuth, requireRole('finance', 'admin'), async (c) => {
+  const rows = await db.select().from(schema.auditLogs).orderBy(desc(schema.auditLogs.ts)).limit(200);
+  return c.json({ logs: rows });
+});
+
+// ---- users (admin) ----------------------------------------------------------
+app.get('/api/users', requireAuth, requireRole('admin'), async (c) => {
+  const rows = await db.select({
+    id: schema.users.id, email: schema.users.email, displayName: schema.users.displayName,
+    role: schema.users.role, wardId: schema.users.wardId, active: schema.users.active,
+  }).from(schema.users).orderBy(schema.users.id);
+  return c.json({ users: rows });
+});
+app.post('/api/users', requireAuth, requireRole('admin'), async (c) => {
+  const b = await c.req.json().catch(() => ({}));
+  const p = z.object({ email: z.string().email(), displayName: z.string().min(1), password: z.string().min(6), role: z.enum(['staff', 'supervisor', 'finance', 'admin']), wardId: z.number().nullable().optional() }).safeParse(b);
+  if (!p.success) return c.json({ error: 'invalid_input', issues: p.error.issues }, 400);
+  const { hashPassword } = await import('./auth.js');
+  const rows = await db.insert(schema.users).values({
+    email: p.data.email.toLowerCase(), displayName: p.data.displayName, role: p.data.role,
+    wardId: p.data.wardId ?? null, passwordHash: await hashPassword(p.data.password),
+  }).onConflictDoNothing({ target: schema.users.email }).returning({ id: schema.users.id, email: schema.users.email });
+  await audit(getUser(c).id, 'user', String(rows[0]?.id), 'create');
+  return c.json({ user: rows[0] ?? null });
+});
+
+// ---- wards CRUD (admin) -----------------------------------------------------
+app.post('/api/wards', requireAuth, requireRole('admin'), async (c) => {
+  const b = await c.req.json().catch(() => ({}));
+  const p = z.object({ code: z.string().min(1), name: z.string().min(1), building: z.string().nullable().optional(), phone: z.string().nullable().optional(), conditions: z.string().nullable().optional() }).safeParse(b);
+  if (!p.success) return c.json({ error: 'invalid_input' }, 400);
+  const rows = await db.insert(schema.wards).values(p.data as any).onConflictDoNothing({ target: schema.wards.code }).returning();
+  await audit(getUser(c).id, 'ward', String(rows[0]?.id), 'create');
+  return c.json({ ward: rows[0] ?? null });
+});
+app.patch('/api/wards/:id', requireAuth, requireRole('supervisor', 'admin'), async (c) => {
+  const id = Number(c.req.param('id'));
+  const b = await c.req.json().catch(() => ({}));
+  const p = z.object({ name: z.string().optional(), building: z.string().nullable().optional(), phone: z.string().nullable().optional(), conditions: z.string().nullable().optional() }).safeParse(b);
+  if (!p.success) return c.json({ error: 'invalid_input' }, 400);
+  const rows = await db.update(schema.wards).set(p.data as any).where(eq(schema.wards.id, id)).returning();
+  await audit(getUser(c).id, 'ward', String(id), 'update');
+  return c.json({ ward: rows[0] ?? null });
+});
+
+// ---- employees create / bulk import ----------------------------------------
+const empInput = z.object({
+  prefix: z.string().nullable().optional(), firstName: z.string().min(1), lastName: z.string().nullable().optional(),
+  role: z.enum(['doctor', 'nurse', 'assistant', 'room', 'support']).default('support'),
+  positionText: z.string().nullable().optional(), employeeType: z.string().nullable().optional(),
+  paymentType: z.enum(['รายเดือน', 'รายวัน', 'รายคาบ']).default('รายเดือน'),
+  line: z.enum(['แพทย์', 'พยาบาล', 'สนับสนุน']).nullable().optional(),
+  baseWage: z.number().nullable().optional(), bankAccount: z.string().nullable().optional(),
+  homeWardId: z.number(),
+});
+app.post('/api/employees', requireAuth, requireRole('supervisor', 'admin'), async (c) => {
+  const b = await c.req.json().catch(() => ({}));
+  const p = empInput.safeParse(b);
+  if (!p.success) return c.json({ error: 'invalid_input', issues: p.error.issues }, 400);
+  const rows = await db.insert(schema.employees).values(p.data as any).returning();
+  await audit(getUser(c).id, 'employee', String(rows[0]?.id), 'create');
+  return c.json({ employee: rows[0] });
+});
+app.post('/api/employees/import', requireAuth, requireRole('supervisor', 'admin'), async (c) => {
+  const b = await c.req.json().catch(() => ({}));
+  const p = z.object({ employees: z.array(empInput) }).safeParse(b);
+  if (!p.success) return c.json({ error: 'invalid_input', issues: p.error.issues }, 400);
+  if (!p.data.employees.length) return c.json({ imported: 0 });
+  const rows = await db.insert(schema.employees).values(p.data.employees as any).returning({ id: schema.employees.id });
+  await audit(getUser(c).id, 'employee', null, 'import', { count: rows.length });
+  return c.json({ imported: rows.length });
+});
+
+// ---- shift types upsert (admin) --------------------------------------------
+app.post('/api/shift-types', requireAuth, requireRole('admin'), async (c) => {
+  const b = await c.req.json().catch(() => ({}));
+  const p = z.object({ code: z.string().min(1), name: z.string().min(1), hours: z.number().default(0), startHour: z.number().nullable().optional(), endHour: z.number().nullable().optional(), isOt: z.boolean().default(false), isWork: z.boolean().default(true), category: z.string().nullable().optional(), sortOrder: z.number().default(0) }).safeParse(b);
+  if (!p.success) return c.json({ error: 'invalid_input' }, 400);
+  const rows = await db.insert(schema.shiftTypes).values(p.data as any)
+    .onConflictDoUpdate({ target: schema.shiftTypes.code, set: p.data as any }).returning();
+  return c.json({ shiftType: rows[0] });
+});
+
+// ---- staffing requirements --------------------------------------------------
+app.get('/api/staffing', requireAuth, async (c) => {
+  const wardId = Number(c.req.query('wardId'));
+  const rows = await db.select().from(schema.staffingRequirements).where(eq(schema.staffingRequirements.wardId, wardId));
+  return c.json({ staffing: rows });
+});
+app.put('/api/staffing', requireAuth, requireRole('supervisor', 'admin'), async (c) => {
+  const b = await c.req.json().catch(() => ({}));
+  const p = z.object({ wardId: z.number(), items: z.array(z.object({ level: z.string(), shiftCode: z.string(), count: z.number().int().min(0) })) }).safeParse(b);
+  if (!p.success) return c.json({ error: 'invalid_input' }, 400);
+  await db.delete(schema.staffingRequirements).where(eq(schema.staffingRequirements.wardId, p.data.wardId));
+  if (p.data.items.length) await db.insert(schema.staffingRequirements).values(p.data.items.map((i) => ({ wardId: p.data.wardId, ...i })));
+  await audit(getUser(c).id, 'staffing', String(p.data.wardId), 'set', { items: p.data.items.length });
+  return c.json({ ok: true, count: p.data.items.length });
+});
+
+// ---- holidays ---------------------------------------------------------------
+app.get('/api/holidays', requireAuth, async (c) => {
+  const year = Number(c.req.query('year'));
+  const rows = await db.select().from(schema.holidays).where(eq(schema.holidays.year, year));
+  return c.json({ holidays: rows });
+});
+app.post('/api/holidays', requireAuth, requireRole('supervisor', 'admin'), async (c) => {
+  const b = await c.req.json().catch(() => ({}));
+  const p = z.object({ year: z.number(), date: z.string(), name: z.string() }).safeParse(b);
+  if (!p.success) return c.json({ error: 'invalid_input' }, 400);
+  const rows = await db.insert(schema.holidays).values(p.data).returning();
+  return c.json({ holiday: rows[0] });
+});
+app.delete('/api/holidays/:id', requireAuth, requireRole('supervisor', 'admin'), async (c) => {
+  await db.delete(schema.holidays).where(eq(schema.holidays.id, Number(c.req.param('id'))));
+  return c.json({ ok: true });
+});
+
 export default app;

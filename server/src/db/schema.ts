@@ -38,8 +38,26 @@ export const wards = pgTable('wards', {
   name: text('name').notNull(),
   building: text('building'),
   phone: text('phone'),
+  conditions: text('conditions'),          // per-ward scheduling conditions (free text for AI/rules)
   active: boolean('active').default(true).notNull(),
 }, (t) => ({ codeIdx: uniqueIndex('wards_code_idx').on(t.code) }));
+
+// ---- staffing requirements per ward (headcount by position/level & shift) ---
+export const staffingRequirements = pgTable('staffing_requirements', {
+  id: serial('id').primaryKey(),
+  wardId: integer('ward_id').references(() => wards.id, { onDelete: 'cascade' }).notNull(),
+  level: text('level').notNull(),          // e.g. หัวหน้าเวร / RN / PN / NA  or L/M/S
+  shiftCode: text('shift_code').notNull(), // ช / บ / ด
+  count: integer('count').default(0).notNull(),
+});
+
+// ---- holidays -------------------------------------------------------------
+export const holidays = pgTable('holidays', {
+  id: serial('id').primaryKey(),
+  year: integer('year').notNull(),         // Buddhist Era
+  date: text('date').notNull(),            // 'MM-DD'
+  name: text('name').notNull(),
+});
 
 // ---- positions / ตำแหน่ง ----------------------------------------------------
 export const positions = pgTable('positions', {

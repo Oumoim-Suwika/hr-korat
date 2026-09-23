@@ -23,9 +23,11 @@ interface Props {
   year: number;
   month: number;
   myEmployeeId: number | null;
+  filterType?: string;
+  title?: string;
 }
 
-export default function RequestsView({ role, wardId, year, month, myEmployeeId }: Props) {
+export default function RequestsView({ role, wardId, year, month, myEmployeeId, filterType, title }: Props) {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [requests, setRequests] = useState<RequestItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -60,9 +62,11 @@ export default function RequestsView({ role, wardId, year, month, myEmployeeId }
   };
 
   const visible = useMemo(() => {
-    if (isStaff && myEmployeeId) return requests.filter((r) => r.employeeId === myEmployeeId);
-    return requests;
-  }, [requests, isStaff, myEmployeeId]);
+    let list = requests;
+    if (filterType) list = list.filter((r) => r.type === filterType);
+    if (isStaff && myEmployeeId) list = list.filter((r) => r.employeeId === myEmployeeId);
+    return list;
+  }, [requests, isStaff, myEmployeeId, filterType]);
 
   const pending = visible.filter((r) => r.status === 'pending');
 
@@ -70,7 +74,7 @@ export default function RequestsView({ role, wardId, year, month, myEmployeeId }
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-bold text-slate-800">คำขอ · {THAI_MONTHS[month - 1]} {year}</h2>
+          <h2 className="text-lg font-bold text-slate-800">{title ?? 'คำขอ'} · {THAI_MONTHS[month - 1]} {year}</h2>
           <p className="text-sm text-slate-500">{isStaff ? 'คำขอของคุณ' : `ทั้งหมด ${visible.length} รายการ · รออนุมัติ ${pending.length}`}</p>
         </div>
         <button onClick={() => setShowForm((s) => !s)} className="flex items-center gap-1.5 text-sm text-white bg-[#0F3575] px-3 py-2 rounded-lg hover:bg-[#0c2a5e]">
@@ -84,6 +88,7 @@ export default function RequestsView({ role, wardId, year, month, myEmployeeId }
         <RequestForm
           employees={employees} wardId={wardId} year={year} month={month}
           fixedEmployeeId={isStaff ? myEmployeeId : null}
+          defaultType={(filterType as any) || 'leave'}
           onDone={(msg) => { setShowForm(false); showToast('ok', msg); load(); }}
           onError={(msg) => showToast('err', msg)}
         />
@@ -124,12 +129,12 @@ export default function RequestsView({ role, wardId, year, month, myEmployeeId }
   );
 }
 
-function RequestForm({ employees, wardId, year, month, fixedEmployeeId, onDone, onError }: {
+function RequestForm({ employees, wardId, year, month, fixedEmployeeId, defaultType, onDone, onError }: {
   employees: Employee[]; wardId: number; year: number; month: number;
-  fixedEmployeeId: number | null;
+  fixedEmployeeId: number | null; defaultType?: 'leave' | 'shift_change' | 'ot' | 'shift_add';
   onDone: (msg: string) => void; onError: (msg: string) => void;
 }) {
-  const [type, setType] = useState<'leave' | 'shift_change' | 'ot' | 'shift_add'>('leave');
+  const [type, setType] = useState<'leave' | 'shift_change' | 'ot' | 'shift_add'>(defaultType ?? 'leave');
   const [employeeId, setEmployeeId] = useState<number | null>(fixedEmployeeId ?? employees[0]?.id ?? null);
   const [day, setDay] = useState<number>(1);
   const [toDay, setToDay] = useState<number | ''>('');

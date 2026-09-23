@@ -1,31 +1,72 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { api, type Ward } from '../api/client';
-import ScheduleView from './ScheduleView';
-import RequestsView from './RequestsView';
-import PersonnelView from './PersonnelView';
-import FinanceView from './FinanceView';
-import DocumentsView from './DocumentsView';
+import type { UserRole } from '../api/client';
 import { THAI_MONTHS } from '../data';
 import {
-  Calendar, LayoutDashboard, DollarSign, Users, FileText, Send, LogOut, Loader2, Construction,
+  LayoutDashboard, Calendar, CalendarClock, Users, Building2, Users2, Clock, CalendarDays,
+  ArrowLeftRight, CalendarX, Send, DollarSign, FileText, BarChart3, ScrollText, ShieldCheck,
+  Settings as SettingsIcon, LogOut, Loader2, Menu,
 } from 'lucide-react';
-import type { UserRole } from '../api/client';
 
-type TabKey = 'schedule' | 'requests' | 'dashboard' | 'finance' | 'personnel' | 'documents';
+import DashboardView from './DashboardView';
+import ScheduleView from './ScheduleView';
+import DailyView from './DailyView';
+import PersonnelView from './PersonnelView';
+import WardsView from './WardsView';
+import StaffingView from './StaffingView';
+import ShiftSettingsView from './ShiftSettingsView';
+import HolidaysView from './HolidaysView';
+import RequestsView from './RequestsView';
+import FinanceView from './FinanceView';
+import DocumentsView from './DocumentsView';
+import ReportsView from './ReportsView';
+import AuditView from './AuditView';
+import UsersView from './UsersView';
+import SettingsView from './SettingsView';
 
-const NAV: { key: TabKey; label: string; icon: any; roles: UserRole[] }[] = [
-  { key: 'dashboard', label: 'ภาพรวม', icon: LayoutDashboard, roles: ['staff', 'supervisor', 'finance', 'admin'] },
-  { key: 'schedule', label: 'ตารางเวร', icon: Calendar, roles: ['staff', 'supervisor', 'finance', 'admin'] },
-  { key: 'requests', label: 'คำขอ (เปลี่ยนเวร/ลา/OT)', icon: Send, roles: ['staff', 'supervisor', 'finance', 'admin'] },
-  { key: 'finance', label: 'การเงิน & เบิกจ่าย', icon: DollarSign, roles: ['finance', 'admin'] },
-  { key: 'personnel', label: 'บุคลากร', icon: Users, roles: ['supervisor', 'admin'] },
-  { key: 'documents', label: 'ฟอร์มตั้งเบิก', icon: FileText, roles: ['staff', 'supervisor', 'finance', 'admin'] },
+type TabKey =
+  | 'dashboard' | 'schedule' | 'daily' | 'personnel' | 'wards' | 'staffing' | 'shifts'
+  | 'holidays' | 'swap' | 'leave' | 'ot' | 'finance' | 'documents' | 'reports' | 'audit' | 'users' | 'settings';
+
+const ALL: UserRole[] = ['staff', 'supervisor', 'finance', 'admin'];
+const SUP: UserRole[] = ['supervisor', 'admin'];
+const FIN: UserRole[] = ['finance', 'admin'];
+
+interface NavItem { key: TabKey; label: string; icon: any; roles: UserRole[]; }
+interface NavSection { title: string; items: NavItem[]; }
+
+const SECTIONS: NavSection[] = [
+  { title: '', items: [{ key: 'dashboard', label: 'แดชบอร์ด', icon: LayoutDashboard, roles: ALL }] },
+  { title: 'จัดเวร', items: [
+    { key: 'schedule', label: 'ตารางเวร', icon: Calendar, roles: ALL },
+    { key: 'daily', label: 'เวรรายวัน', icon: CalendarClock, roles: ALL },
+    { key: 'staffing', label: 'ความต้องการพนักงาน', icon: Users2, roles: SUP },
+    { key: 'shifts', label: 'ตั้งค่าเวร', icon: Clock, roles: SUP },
+    { key: 'holidays', label: 'วันหยุด', icon: CalendarDays, roles: ALL },
+  ]},
+  { title: 'คำขอ', items: [
+    { key: 'swap', label: 'คำขอแลกเวร', icon: ArrowLeftRight, roles: ALL },
+    { key: 'leave', label: 'คำขอลา', icon: CalendarX, roles: ALL },
+    { key: 'ot', label: 'คำขอขึ้น OT', icon: Send, roles: ALL },
+  ]},
+  { title: 'การเงิน & เอกสาร', items: [
+    { key: 'finance', label: 'การเงิน & เบิกจ่าย', icon: DollarSign, roles: FIN },
+    { key: 'documents', label: 'ฟอร์มตั้งเบิก (ครุฑ)', icon: FileText, roles: ALL },
+    { key: 'reports', label: 'รายงาน & วิเคราะห์', icon: BarChart3, roles: [...SUP, 'finance'] },
+  ]},
+  { title: 'ข้อมูลหลัก', items: [
+    { key: 'personnel', label: 'จัดการบุคลากร', icon: Users, roles: SUP },
+    { key: 'wards', label: 'จัดการวอร์ด', icon: Building2, roles: SUP },
+  ]},
+  { title: 'ระบบ (Admin)', items: [
+    { key: 'audit', label: 'บันทึกการตรวจสอบ', icon: ScrollText, roles: FIN },
+    { key: 'users', label: 'จัดการผู้ใช้', icon: ShieldCheck, roles: ['admin'] },
+    { key: 'settings', label: 'ตั้งค่าระบบ', icon: SettingsIcon, roles: ['admin'] },
+  ]},
 ];
 
-const ROLE_LABEL: Record<UserRole, string> = {
-  staff: 'เจ้าหน้าที่', supervisor: 'หัวหน้างาน', finance: 'การเงิน', admin: 'ผู้ดูแลระบบ',
-};
+const ROLE_LABEL: Record<UserRole, string> = { staff: 'เจ้าหน้าที่', supervisor: 'หัวหน้างาน', finance: 'การเงิน', admin: 'ผู้ดูแลระบบ' };
 
 export default function AppShell() {
   const { user, logout } = useAuth();
@@ -33,61 +74,89 @@ export default function AppShell() {
   const [wardId, setWardId] = useState<number | null>(user?.wardId ?? null);
   const [year, setYear] = useState(2569);
   const [month, setMonth] = useState(7);
-  const [tab, setTab] = useState<TabKey>('schedule');
+  const [tab, setTab] = useState<TabKey>('dashboard');
   const [loading, setLoading] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     (async () => {
-      try {
-        const w = await api.wards();
-        setWards(w);
-        setWardId((cur) => cur ?? w[0]?.id ?? null);
-      } finally { setLoading(false); }
+      try { const w = await api.wards(); setWards(w); setWardId((c) => c ?? w[0]?.id ?? null); }
+      finally { setLoading(false); }
     })();
   }, []);
 
   if (!user) return null;
-  const nav = NAV.filter((n) => n.roles.includes(user.role));
+  const role = user.role;
+  const ward = wards.find((w) => w.id === wardId);
+  const wardName = ward?.name ?? '';
+
+  const sections = SECTIONS
+    .map((s) => ({ ...s, items: s.items.filter((i) => i.roles.includes(role)) }))
+    .filter((s) => s.items.length > 0);
+
+  const renderView = () => {
+    if (loading || wardId == null) return <div className="grid place-items-center py-20 text-slate-400"><Loader2 className="w-6 h-6 animate-spin" /></div>;
+    switch (tab) {
+      case 'dashboard': return <DashboardView wardName={wardName} wardId={wardId} year={year} month={month} />;
+      case 'schedule': return <ScheduleView role={role} wards={wards} wardId={wardId} year={year} month={month} />;
+      case 'daily': return <DailyView wardName={wardName} wardId={wardId} year={year} month={month} />;
+      case 'personnel': return <PersonnelView wardId={wardId} wardName={wardName} role={role} />;
+      case 'wards': return <WardsView role={role} />;
+      case 'staffing': return <StaffingView wardName={wardName} wardId={wardId} role={role} />;
+      case 'shifts': return <ShiftSettingsView />;
+      case 'holidays': return <HolidaysView year={year} role={role} />;
+      case 'swap': return <RequestsView role={role} wardId={wardId} year={year} month={month} myEmployeeId={user.employeeId} filterType="shift_change" title="คำขอแลกเวร" />;
+      case 'leave': return <RequestsView role={role} wardId={wardId} year={year} month={month} myEmployeeId={user.employeeId} filterType="leave" title="คำขอลา" />;
+      case 'ot': return <RequestsView role={role} wardId={wardId} year={year} month={month} myEmployeeId={user.employeeId} filterType="ot" title="คำขอขึ้น OT" />;
+      case 'finance': return <FinanceView wardName={wardName} wardId={wardId} year={year} month={month} />;
+      case 'documents': return <DocumentsView wardName={wardName} wardPhone={ward?.phone} wardId={wardId} year={year} month={month} />;
+      case 'reports': return <ReportsView wardName={wardName} wardId={wardId} year={year} month={month} />;
+      case 'audit': return <AuditView />;
+      case 'users': return <UsersView />;
+      case 'settings': return <SettingsView />;
+      default: return null;
+    }
+  };
 
   return (
     <div className="min-h-screen bg-slate-100 flex">
       {/* sidebar */}
-      <aside className="w-60 bg-white border-r border-slate-200 flex flex-col shrink-0">
-        <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-2">
-          <div className="w-9 h-9 rounded-lg bg-[#0F3575] text-white grid place-items-center font-bold">S</div>
-          <div>
-            <div className="font-bold text-slate-800 text-sm leading-tight">Sati จัดเวร · OT</div>
-            <div className="text-[11px] text-slate-400">รพ.มหาราชนครราชสีมา</div>
-          </div>
+      <aside className={`no-print w-60 bg-[#0F3575] text-white flex flex-col shrink-0 fixed lg:static inset-y-0 z-30 transition-transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
+        <div className="px-5 py-4 border-b border-white/10 flex items-center gap-2">
+          <div className="w-9 h-9 rounded-lg bg-white/15 grid place-items-center font-bold">S</div>
+          <div><div className="font-bold text-sm leading-tight">Sati จัดเวร · OT</div><div className="text-[11px] text-white/60">รพ.มหาราชนครราชสีมา</div></div>
         </div>
-        <nav className="flex-1 p-3 space-y-1">
-          {nav.map((n) => {
-            const Icon = n.icon;
-            return (
-              <button key={n.key} onClick={() => setTab(n.key)}
-                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition ${tab === n.key ? 'bg-[#0F3575] text-white' : 'text-slate-600 hover:bg-slate-100'}`}>
-                <Icon className="w-4 h-4" />{n.label}
-              </button>
-            );
-          })}
+        <nav className="flex-1 overflow-y-auto p-3 space-y-3">
+          {sections.map((s, si) => (
+            <div key={si}>
+              {s.title && <div className="px-2 text-[10px] uppercase tracking-wide text-white/40 mb-1">{s.title}</div>}
+              <div className="space-y-0.5">
+                {s.items.map((n) => {
+                  const Icon = n.icon;
+                  return (
+                    <button key={n.key} onClick={() => { setTab(n.key); setSidebarOpen(false); }}
+                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition ${tab === n.key ? 'bg-white text-[#0F3575] font-medium' : 'text-white/80 hover:bg-white/10'}`}>
+                      <Icon className="w-4 h-4" />{n.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </nav>
-        <div className="p-3 border-t border-slate-100">
-          <div className="px-2 mb-2">
-            <div className="text-sm font-medium text-slate-700">{user.displayName}</div>
-            <div className="text-[11px] text-slate-400">{ROLE_LABEL[user.role]}</div>
-          </div>
-          <button onClick={logout} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-slate-500 hover:bg-slate-100">
-            <LogOut className="w-4 h-4" />ออกจากระบบ
-          </button>
+        <div className="p-3 border-t border-white/10">
+          <div className="px-2 mb-2"><div className="text-sm font-medium">{user.displayName}</div><div className="text-[11px] text-white/60">{ROLE_LABEL[role]}</div></div>
+          <button onClick={logout} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-white/80 hover:bg-white/10"><LogOut className="w-4 h-4" />ออกจากระบบ</button>
         </div>
       </aside>
+      {sidebarOpen && <div className="fixed inset-0 bg-black/30 z-20 lg:hidden" onClick={() => setSidebarOpen(false)} />}
 
       {/* main */}
       <main className="flex-1 min-w-0 flex flex-col">
-        <header className="bg-white border-b border-slate-200 px-6 py-3 flex flex-wrap items-center gap-3 justify-between">
-          <div className="flex items-center gap-2">
-            <select value={wardId ?? ''} onChange={(e) => setWardId(Number(e.target.value))}
-              className="text-sm border border-slate-300 rounded-lg px-3 py-1.5" disabled={user.role === 'supervisor' && !!user.wardId}>
+        <header className="no-print bg-white border-b border-slate-200 px-4 sm:px-6 py-3 flex flex-wrap items-center gap-3 justify-between">
+          <button className="lg:hidden p-2 -ml-2" onClick={() => setSidebarOpen(true)}><Menu className="w-5 h-5" /></button>
+          <div className="flex items-center gap-2 flex-wrap">
+            <select value={wardId ?? ''} onChange={(e) => setWardId(Number(e.target.value))} className="text-sm border border-slate-300 rounded-lg px-3 py-1.5" disabled={role === 'supervisor' && !!user.wardId}>
               {wards.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
             </select>
             <select value={month} onChange={(e) => setMonth(Number(e.target.value))} className="text-sm border border-slate-300 rounded-lg px-3 py-1.5">
@@ -98,41 +167,8 @@ export default function AppShell() {
             </select>
           </div>
         </header>
-
-        <div className="flex-1 p-6 overflow-auto">
-          {loading || wardId == null ? (
-            <div className="grid place-items-center py-20 text-slate-400"><Loader2 className="w-6 h-6 animate-spin" /></div>
-          ) : tab === 'schedule' ? (
-            <ScheduleView role={user.role} wards={wards} wardId={wardId} year={year} month={month} />
-          ) : tab === 'requests' ? (
-            <RequestsView role={user.role} wardId={wardId} year={year} month={month} myEmployeeId={user.employeeId} />
-          ) : tab === 'personnel' ? (
-            <PersonnelView wardId={wardId} />
-          ) : tab === 'finance' ? (
-            <FinanceView wardName={wards.find((w) => w.id === wardId)?.name ?? ''} wardId={wardId} year={year} month={month} />
-          ) : tab === 'documents' ? (
-            <DocumentsView wardName={wards.find((w) => w.id === wardId)?.name ?? ''} wardPhone={wards.find((w) => w.id === wardId)?.phone} wardId={wardId} year={year} month={month} />
-          ) : (
-            <Placeholder tab={tab} />
-          )}
-        </div>
+        <div className="flex-1 p-4 sm:p-6 overflow-auto">{renderView()}</div>
       </main>
-    </div>
-  );
-}
-
-function Placeholder({ tab }: { tab: TabKey }) {
-  const labels: Record<string, string> = {
-    dashboard: 'แดชบอร์ดภาพรวม', requests: 'คำขอเปลี่ยนเวร/ลา/OT',
-    finance: 'การเงิน & เบิกจ่าย', personnel: 'บุคลากร', documents: 'ฟอร์มตั้งเบิก (PDF ตราครุฑ)',
-  };
-  return (
-    <div className="grid place-items-center py-24 text-center">
-      <Construction className="w-10 h-10 text-slate-300 mb-3" />
-      <h3 className="text-lg font-semibold text-slate-600">{labels[tab]}</h3>
-      <p className="text-sm text-slate-400 mt-1 max-w-md">
-        โมดูลนี้กำลังย้ายเข้าระบบใหม่ (เชื่อม backend) — เมนูพร้อมแล้ว ฟีเจอร์จะทยอยเปิดในรอบถัดไป
-      </p>
     </div>
   );
 }
