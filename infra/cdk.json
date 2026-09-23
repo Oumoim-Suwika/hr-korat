@@ -1,7 +1,8 @@
 {
   "app": "npx tsx bin/sati.ts",
   "context": {
-    "baseZoneName": "sati.co.th",
+    "baseZoneName": "app.sati.co.th",
+    "hostedZoneId": "Z03244883NK891J4KR7RI",
     "domainName": "hr-mnrh.app.sati.co.th",
     "apiDomainName": "api-hr-mnrh.app.sati.co.th",
     "@aws-cdk/aws-lambda:recognizeLayerVersion": true,

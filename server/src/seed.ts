@@ -38,10 +38,7 @@ const SHIFT_TYPES = [
   { code: 'T', name: 'อบรม/ไปราชการ (Training)', hours: 0, isOt: false, isWork: false, category: null, sortOrder: 12 },
 ];
 
-async function main() {
-  console.log('Running migrations...');
-  await runMigrations();
-
+export async function seed() {
   // organization
   const orgCount = await db.select({ n: sql<number>`count(*)` }).from(schema.organizations);
   if (Number(orgCount[0].n) === 0) {
@@ -100,10 +97,13 @@ async function main() {
     await db.insert(schema.users).values({ ...u, passwordHash: hash }).onConflictDoNothing({ target: schema.users.email });
   }
 
-  console.log('Seed complete.');
-  console.log('Wards:', wardRows.length, '| Positions:', posRows.length);
-  console.log('Test logins (password: %s): admin@sati.local, finance@sati.local, head.u01@sati.local, staff.u01@sati.local', PASSWORD);
-  process.exit(0);
+  console.log('Seed complete. Wards:', wardRows.length, '| Positions:', posRows.length);
 }
 
-main().catch((e) => { console.error(e); process.exit(1); });
+// CLI: `tsx src/seed.ts` runs migrations then seeds.
+if (process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('/seed.ts')) {
+  runMigrations()
+    .then(seed)
+    .then(() => { console.log('Done. Logins (pw Sati@1234): admin@sati.local, finance@sati.local, head.u01@sati.local, staff.u01@sati.local'); process.exit(0); })
+    .catch((e) => { console.error(e); process.exit(1); });
+}

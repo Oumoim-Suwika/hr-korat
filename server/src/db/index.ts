@@ -19,9 +19,17 @@ let rawExec: (sql: string) => Promise<void>;
 if (driver === 'pg') {
   const { drizzle } = await import('drizzle-orm/node-postgres');
   const { Pool } = await import('pg');
-  // Prefer a full DATABASE_URL; otherwise fall back to standard PG* env vars
-  // (PGHOST/PGPORT/PGUSER/PGPASSWORD/PGDATABASE) which node-postgres reads
-  // automatically — this is how the Aurora secret is injected on Fargate.
+  // In production (Lambda/Fargate) the Aurora credentials come from Secrets
+  // Manager: DB_SECRET_ARN points at the generated secret. We resolve it and
+  // set the standard PG* env vars that node-postgres reads automatically.
+  if (!process.env.DATABASE_URL && process.env.DB_SECRET_ARN && !process.env.PGHOST) {
+    const s = await fetchDbSecret(process.env.DB_SECRET_ARN);
+    process.env.PGHOST = s.host;
+    process.env.PGPORT = String(s.port ?? 5432);
+    process.env.PGUSER = s.username;
+    process.env.PGPASSWORD = s.password;
+    process.env.PGDATABASE = s.dbname ?? 'sati';
+  }
   const url = process.env.DATABASE_URL;
   const pool = url ? new Pool({ connectionString: url, ssl: { rejectUnauthorized: false } })
                    : new Pool({ ssl: { rejectUnauthorized: false } });
@@ -38,6 +46,14 @@ if (driver === 'pg') {
 }
 
 export { db, schema };
+
+interface DbSecret { host: string; port?: number; username: string; password: string; dbname?: string; }
+async function fetchDbSecret(arn: string): Promise<DbSecret> {
+  const { SecretsManagerClient, GetSecretValueCommand } = await import('@aws-sdk/client-secrets-manager');
+  const client = new SecretsManagerClient({});
+  const res = await client.send(new GetSecretValueCommand({ SecretId: arn }));
+  return JSON.parse(res.SecretString ?? '{}') as DbSecret;
+}
 
 /** Idempotent schema creation (dev-friendly; prod should use real migrations). */
 export async function runMigrations(): Promise<void> {

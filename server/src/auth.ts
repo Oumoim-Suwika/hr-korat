@@ -3,8 +3,9 @@ import { SignJWT, jwtVerify } from 'jose';
 import bcrypt from 'bcryptjs';
 import type { Context, Next } from 'hono';
 
-const SECRET = new TextEncoder().encode(process.env.JWT_SECRET ?? 'dev-only-change-me-please');
 const ALG = 'HS256';
+// Resolved at call time so Lambda can inject JWT_SECRET during cold-start init.
+const secretKey = () => new TextEncoder().encode(process.env.JWT_SECRET ?? 'dev-only-change-me-please');
 
 export type UserRole = 'staff' | 'supervisor' | 'finance' | 'admin';
 
@@ -33,11 +34,11 @@ export async function signToken(user: AuthUser): Promise<string> {
     .setSubject(String(user.id))
     .setIssuedAt()
     .setExpirationTime('12h')
-    .sign(SECRET);
+    .sign(secretKey());
 }
 
 export async function verifyToken(token: string): Promise<AuthUser> {
-  const { payload } = await jwtVerify(token, SECRET, { algorithms: [ALG] });
+  const { payload } = await jwtVerify(token, secretKey(), { algorithms: [ALG] });
   return {
     id: Number(payload.sub),
     email: String(payload.email),

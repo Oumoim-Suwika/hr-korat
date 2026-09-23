@@ -2,8 +2,8 @@ import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as rds from 'aws-cdk-lib/aws-rds';
-import * as ecs from 'aws-cdk-lib/aws-ecs';
-import * as ecsp from 'aws-cdk-lib/aws-ecs-patterns';
+import * as lambda from 'aws-cdk-lib/aws-lambda';
+import { NodejsFunction, OutputFormat } from 'aws-cdk-lib/aws-lambda-nodejs';
 import * as sm from 'aws-cdk-lib/aws-secretsmanager';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as cf from 'aws-cdk-lib/aws-cloudfront';
@@ -11,35 +11,39 @@ import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
 import * as acm from 'aws-cdk-lib/aws-certificatemanager';
 import * as r53 from 'aws-cdk-lib/aws-route53';
 import * as targets from 'aws-cdk-lib/aws-route53-targets';
+import * as apigw from 'aws-cdk-lib/aws-apigatewayv2';
+import { HttpLambdaIntegration } from 'aws-cdk-lib/aws-apigatewayv2-integrations';
 import * as cognito from 'aws-cdk-lib/aws-cognito';
 import * as s3deploy from 'aws-cdk-lib/aws-s3-deployment';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const repoRoot = path.join(__dirname, '..', '..');
 
 /**
- * Full production stack for Sati (single hospital / single tenant).
+ * Sati production stack — Lambda architecture (no Docker required).
  *
  *   Frontend : hr-mnrh.app.sati.co.th      (S3 + CloudFront)
- *   API      : api-hr-mnrh.app.sati.co.th  (ALB + ECS Fargate)
+ *   API      : api-hr-mnrh.app.sati.co.th  (API Gateway HTTP API -> Lambda)
  *   Database : Amazon Aurora PostgreSQL Serverless v2 (private subnets)
  *
- * NOTE: deploy in us-east-1 so the CloudFront ACM certificate is in-region
- * (single-command deploy). Region is configurable in bin/sati.ts.
+ * Deploy region: us-east-1 (CloudFront + API certs both in-region).
  */
 export class SatiStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
     const ctx = (k: string, d: string) => (this.node.tryGetContext(k) as string) ?? d;
-    const baseZoneName = ctx('baseZoneName', 'sati.co.th');
+    const baseZoneName = ctx('baseZoneName', 'app.sati.co.th');
+    const hostedZoneId = ctx('hostedZoneId', 'Z03244883NK891J4KR7RI');
     const domainName = ctx('domainName', 'hr-mnrh.app.sati.co.th');
     const apiDomainName = ctx('apiDomainName', 'api-hr-mnrh.app.sati.co.th');
 
-    const zone = r53.HostedZone.fromLookup(this, 'Zone', { domainName: baseZoneName });
+    const zone = r53.HostedZone.fromHostedZoneAttributes(this, 'Zone', {
+      hostedZoneId, zoneName: baseZoneName,
+    });
 
-    // TLS certificates (DNS-validated against the hosted zone)
     const siteCert = new acm.Certificate(this, 'SiteCert', {
       domainName, validation: acm.CertificateValidation.fromDns(zone),
     });
@@ -50,7 +54,7 @@ export class SatiStack extends cdk.Stack {
     // ---- network ----------------------------------------------------------
     const vpc = new ec2.Vpc(this, 'Vpc', { maxAzs: 2, natGateways: 1 });
 
-    // ---- database: Aurora PostgreSQL Serverless v2 ------------------------
+    // ---- database ---------------------------------------------------------
     const db = new rds.DatabaseCluster(this, 'Db', {
       engine: rds.DatabaseClusterEngine.auroraPostgres({ version: rds.AuroraPostgresEngineVersion.VER_16_4 }),
       vpc,
@@ -65,48 +69,57 @@ export class SatiStack extends cdk.Stack {
     });
     const dbSecret = db.secret!;
 
-    // JWT signing secret (kept out of code/repo)
     const jwtSecret = new sm.Secret(this, 'JwtSecret', {
       generateSecretString: { passwordLength: 48, excludePunctuation: true },
     });
 
-    // ---- API: ECS Fargate behind ALB -------------------------------------
-    const cluster = new ecs.Cluster(this, 'Cluster', { vpc });
-    const apiService = new ecsp.ApplicationLoadBalancedFargateService(this, 'Api', {
-      cluster,
-      cpu: 512,
-      memoryLimitMiB: 1024,
-      desiredCount: 2,
-      taskImageOptions: {
-        image: ecs.ContainerImage.fromAsset(path.join(__dirname, '..', '..', 'server')),
-        containerPort: 4000,
-        environment: {
-          DB_DRIVER: 'pg',
-          PORT: '4000',
-          CORS_ORIGIN: `https://${domainName}`,
-        },
-        secrets: {
-          // node-postgres reads these PG* vars automatically
-          PGHOST: ecs.Secret.fromSecretsManager(dbSecret, 'host'),
-          PGPORT: ecs.Secret.fromSecretsManager(dbSecret, 'port'),
-          PGUSER: ecs.Secret.fromSecretsManager(dbSecret, 'username'),
-          PGPASSWORD: ecs.Secret.fromSecretsManager(dbSecret, 'password'),
-          PGDATABASE: ecs.Secret.fromSecretsManager(dbSecret, 'dbname'),
-          JWT_SECRET: ecs.Secret.fromSecretsManager(jwtSecret),
-        },
+    // ---- API Lambda (in VPC) ---------------------------------------------
+    const apiFn = new NodejsFunction(this, 'ApiFn', {
+      entry: path.join(repoRoot, 'server', 'src', 'lambda.ts'),
+      projectRoot: repoRoot,
+      depsLockFilePath: path.join(repoRoot, 'server', 'package-lock.json'),
+      handler: 'handler',
+      runtime: lambda.Runtime.NODEJS_20_X,
+      memorySize: 1024,
+      timeout: cdk.Duration.seconds(30),
+      vpc,
+      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
+      environment: {
+        DB_DRIVER: 'pg',
+        DB_SECRET_ARN: dbSecret.secretArn,
+        JWT_SECRET_ARN: jwtSecret.secretArn,
+        CORS_ORIGIN: `https://${domainName}`,
+        NODE_OPTIONS: '--enable-source-maps',
       },
-      publicLoadBalancer: true,
-      domainName: apiDomainName,
-      domainZone: zone,
-      certificate: apiCert,
-      redirectHTTP: true,
+      bundling: {
+        format: OutputFormat.ESM,
+        target: 'node20',
+        sourceMap: true,
+        // In Lambda runtime / not needed in prod:
+        externalModules: ['@aws-sdk/*', '@electric-sql/pglite', 'pg-native'],
+        // esbuild banner so ESM can use require() if any dep needs it
+        banner: "import { createRequire } from 'module'; const require = createRequire(import.meta.url);",
+      },
     });
-    apiService.targetGroup.configureHealthCheck({ path: '/api/health', healthyHttpCodes: '200' });
-    db.connections.allowDefaultPortFrom(apiService.service, 'API -> Aurora');
+    dbSecret.grantRead(apiFn);
+    jwtSecret.grantRead(apiFn);
+    db.connections.allowDefaultPortFrom(apiFn, 'API Lambda -> Aurora');
 
-    // Autoscale API on CPU
-    const scaling = apiService.service.autoScaleTaskCount({ minCapacity: 2, maxCapacity: 10 });
-    scaling.scaleOnCpuUtilization('Cpu', { targetUtilizationPercent: 60 });
+    // ---- HTTP API + custom domain ----------------------------------------
+    const apiDomain = new apigw.DomainName(this, 'ApiDomain', {
+      domainName: apiDomainName,
+      certificate: apiCert,
+    });
+    const httpApi = new apigw.HttpApi(this, 'HttpApi', {
+      defaultIntegration: new HttpLambdaIntegration('ApiIntegration', apiFn),
+      defaultDomainMapping: { domainName: apiDomain },
+    });
+    new r53.ARecord(this, 'ApiAlias', {
+      zone, recordName: apiDomainName,
+      target: r53.RecordTarget.fromAlias(new targets.ApiGatewayv2DomainProperties(
+        apiDomain.regionalDomainName, apiDomain.regionalHostedZoneId,
+      )),
+    });
 
     // ---- frontend: S3 + CloudFront ---------------------------------------
     const siteBucket = new s3.Bucket(this, 'SiteBucket', {
@@ -132,16 +145,14 @@ export class SatiStack extends cdk.Stack {
       zone, recordName: domainName,
       target: r53.RecordTarget.fromAlias(new targets.CloudFrontTarget(distribution)),
     });
-
-    // Deploy the built SPA (run `bun run build` at repo root first)
     new s3deploy.BucketDeployment(this, 'DeploySite', {
-      sources: [s3deploy.Source.asset(path.join(__dirname, '..', '..', 'dist'))],
+      sources: [s3deploy.Source.asset(path.join(repoRoot, 'dist'))],
       destinationBucket: siteBucket,
       distribution,
       distributionPaths: ['/*'],
     });
 
-    // ---- Cognito (future: staff SSO / LINE federation) --------------------
+    // ---- Cognito (reserved for staff SSO / LINE federation) --------------
     new cognito.UserPool(this, 'UserPool', {
       selfSignUpEnabled: false,
       signInAliases: { email: true },
@@ -149,7 +160,6 @@ export class SatiStack extends cdk.Stack {
       removalPolicy: cdk.RemovalPolicy.RETAIN,
     });
 
-    // ---- outputs ----------------------------------------------------------
     new cdk.CfnOutput(this, 'FrontendUrl', { value: `https://${domainName}` });
     new cdk.CfnOutput(this, 'ApiUrl', { value: `https://${apiDomainName}` });
     new cdk.CfnOutput(this, 'DbSecretArn', { value: dbSecret.secretArn });
