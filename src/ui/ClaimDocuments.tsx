@@ -3,7 +3,7 @@ import type { Employee, RosterSigner } from '../api/client';
 import { THAI_MONTHS, REIMBURSEMENT_UNITS } from '../data';
 import { thaiBahtText } from '../lib/thaiBaht';
 import { toThaiDigits } from '../lib/thai';
-import { computeClaim, type CellMap } from '../lib/useRosterData';
+import { computeClaim, rateFor, type CellMap } from '../lib/useRosterData';
 
 const OT_COLS = ['ชot', 'บot', 'ดot', 'BD', 'OR'];
 
@@ -106,6 +106,36 @@ export default function ClaimDocuments({
         <div style={{ display: 'flex', justifyContent: 'space-around', marginTop: 36, fontSize: 14, textAlign: 'center' }}>
           <div><div>(ลงชื่อ) ....................................</div><div>( {controller?.name ?? '...........................'} )</div><div>{controller?.title ?? ''}</div></div>
           <div><div>(ลงชื่อ) ....................................</div><div>( {approver?.name ?? '...........................'} )</div><div>{approver?.title ?? ''}</div></div>
+        </div>
+      </div>
+
+      {/* ใบแนบปริมาณงานเบิก OT (breakdown by code × rate) */}
+      <div className="gov-form" style={{ ...paper, pageBreakBefore: 'always' }}>
+        <div style={{ textAlign: 'center', fontWeight: 700, fontSize: 18 }}>ใบแนบปริมาณงานการปฏิบัติงานนอกเวลาราชการและวันหยุดราชการ</div>
+        <div style={{ textAlign: 'center', fontSize: 14, marginBottom: 10 }}>{wardName} ประจำเดือน {monthName} {toThaiDigits(year)}</div>
+        <table style={{ fontSize: 13 }}>
+          <thead><tr><th style={{ width: 30 }}>ที่</th><th>ชื่อ - นามสกุล</th><th>รหัสเวร</th><th style={{ width: 50 }}>จำนวน(เวร)</th><th style={{ width: 70 }}>อัตรา(บาท)</th><th style={{ width: 80 }}>รวม(บาท)</th></tr></thead>
+          <tbody>
+            {claims.flatMap((c, i) => Object.entries(c.byCode).map(([code, n], j) => {
+              const rate = rateFor(c.employee.role, code);
+              return (
+                <tr key={`${c.employee.id}-${code}`}>
+                  <td style={{ textAlign: 'center' }}>{j === 0 ? toThaiDigits(i + 1) : ''}</td>
+                  <td>{j === 0 ? `${c.employee.prefix ?? ''}${c.employee.firstName} ${c.employee.lastName ?? ''}` : ''}</td>
+                  <td style={{ textAlign: 'center' }}>{code}</td>
+                  <td style={{ textAlign: 'center' }}>{toThaiDigits(n as number)}</td>
+                  <td style={{ textAlign: 'right' }}>{toThaiDigits(rate.toLocaleString('th-TH'))}</td>
+                  <td style={{ textAlign: 'right' }}>{toThaiDigits(((n as number) * rate).toLocaleString('th-TH'))}</td>
+                </tr>
+              );
+            }))}
+            <tr style={{ fontWeight: 700 }}><td colSpan={5} style={{ textAlign: 'right' }}>รวมทั้งสิ้น</td><td style={{ textAlign: 'right' }}>{toThaiDigits(total.toLocaleString('th-TH'))}</td></tr>
+          </tbody>
+        </table>
+        <div style={{ textAlign: 'center', marginTop: 30, fontSize: 14 }}>
+          <div>(ลงชื่อ) ....................................</div>
+          <div>( {controller?.name ?? '...........................'} )</div>
+          <div>{controller?.title ?? 'ผู้จัดทำ'}</div>
         </div>
       </div>
     </div>

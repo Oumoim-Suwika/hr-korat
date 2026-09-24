@@ -89,6 +89,7 @@ export const api = {
   wards: () => request<{ wards: Ward[] }>('GET', '/api/wards').then((r) => r.wards),
   shiftTypes: () => request<{ shiftTypes: ShiftType[] }>('GET', '/api/shift-types').then((r) => r.shiftTypes),
   employees: (wardId: number) => request<{ employees: Employee[] }>('GET', `/api/employees?wardId=${wardId}`).then((r) => r.employees),
+  allEmployees: () => request<{ employees: Employee[] }>('GET', '/api/employees').then((r) => r.employees),
 
   getWorkingCalendar: (wardId: number, year: number, month: number) =>
     request<{ calendar: WorkingCalendar | null }>('GET', `/api/working-calendar?wardId=${wardId}&year=${year}&month=${month}`).then((r) => r.calendar),

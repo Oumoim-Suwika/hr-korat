@@ -5,7 +5,7 @@ import {
 } from '../api/client';
 import { SHIFT_TYPES as SHIFT_META, THAI_MONTHS, THAI_DAYS_SHORT, normalizeShiftCode } from '../data';
 import type { UserRole } from '../api/client';
-import { Lock, LockOpen, Save, Send, CheckCircle2, Eraser, Loader2, Users, Printer, Wand2, Upload } from 'lucide-react';
+import { Lock, LockOpen, Save, Send, CheckCircle2, Eraser, Loader2, Users, Printer, Wand2, Upload, UserPlus } from 'lucide-react';
 import PrintableRoster from './PrintableRoster';
 
 const META = Object.fromEntries(SHIFT_META.map((s) => [s.code, s]));
@@ -37,6 +37,9 @@ export default function ScheduleView({ role, wards, wardId, year, month }: Props
   const [calendar, setCalendar] = useState<WorkingCalendar | null>(null);
   const [signers, setSigners] = useState<RosterSigner[]>([]);
   const [noteText, setNoteText] = useState('');
+  const [allEmployees, setAllEmployees] = useState<Employee[]>([]);
+  const [externalIds, setExternalIds] = useState<number[]>([]);
+  const [showExt, setShowExt] = useState(false);
   const [brush, setBrush] = useState<string>('ช');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -61,15 +64,17 @@ export default function ScheduleView({ role, wards, wardId, year, month }: Props
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [emps, sts, cal, ros] = await Promise.all([
+      const [emps, sts, cal, ros, all] = await Promise.all([
         api.employees(wardId),
         api.shiftTypes(),
         api.getWorkingCalendar(wardId, year, month),
         api.getRoster(wardId, year, month),
+        api.allEmployees(),
       ]);
       setEmployees(emps);
       setShiftTypes(sts);
       setCalendar(cal);
+      setAllEmployees(all);
       setWorkingDaysInput(cal?.workingDays ?? 0);
       setRoster(ros.roster);
       setSigners(ros.signers ?? []);
@@ -77,6 +82,10 @@ export default function ScheduleView({ role, wards, wardId, year, month }: Props
       const map: CellMap = {};
       for (const c of ros.cells) map[key(c.employeeId, c.day)] = { normalCode: c.normalCode, otCode: c.otCode };
       setCells(map);
+      // external = people with cells but not in this ward's staff, or flagged external
+      const wardIds = new Set(emps.map((e) => e.id));
+      const ext = Array.from(new Set(ros.cells.filter((c: any) => c.external || !wardIds.has(c.employeeId)).map((c) => c.employeeId)));
+      setExternalIds(ext);
     } catch (e: any) {
       showToast('err', e?.message || 'โหลดข้อมูลไม่สำเร็จ');
     } finally {
@@ -86,14 +95,20 @@ export default function ScheduleView({ role, wards, wardId, year, month }: Props
 
   useEffect(() => { load(); }, [load]);
 
+  const isExternal = (id: number) => externalIds.includes(id) && !employees.some((w) => w.id === id);
+  const externalEmployees = useMemo(() => allEmployees.filter((e) => externalIds.includes(e.id) && !employees.some((w) => w.id === e.id)), [allEmployees, externalIds, employees]);
+  const rows = useMemo(() => [...employees, ...externalEmployees], [employees, externalEmployees]);
+
   const paint = (empId: number, day: number) => {
     if (!canEdit) return;
     const k = key(empId, day);
+    const ext = isExternal(empId);
     setCells((prev) => {
       const cur = { ...(prev[k] ?? {}) };
       if (brush === 'ERASE') { return { ...prev, [k]: {} }; }
       const isOt = (META as any)[brush]?.isOt || OT_BRUSH.includes(brush);
-      if (isOt) cur.otCode = cur.otCode === brush ? null : brush;
+      if (ext) { if (isOt) cur.otCode = cur.otCode === brush ? null : brush; } // external = OT only
+      else if (isOt) cur.otCode = cur.otCode === brush ? null : brush;
       else cur.normalCode = cur.normalCode === brush ? null : brush;
       return { ...prev, [k]: cur };
     });
@@ -155,11 +170,12 @@ export default function ScheduleView({ role, wards, wardId, year, month }: Props
 
   const buildCells = (): RosterCell[] => {
     const out: RosterCell[] = [];
-    for (const emp of employees) {
+    for (const emp of rows) {
+      const ext = isExternal(emp.id);
       for (const day of days) {
         const c = cells[key(emp.id, day)];
         if (c && (c.normalCode || c.otCode)) {
-          out.push({ employeeId: emp.id, day, normalCode: c.normalCode ?? null, otCode: c.otCode ?? null });
+          out.push({ employeeId: emp.id, day, normalCode: ext ? null : (c.normalCode ?? null), otCode: c.otCode ?? null, external: ext });
         }
       }
     }
@@ -276,8 +292,20 @@ export default function ScheduleView({ role, wards, wardId, year, month }: Props
           ))}
           <button onClick={() => setBrush('ERASE')} className={`flex items-center gap-1 text-xs px-2 py-1.5 rounded border ${brush === 'ERASE' ? 'bg-slate-800 text-white border-slate-800' : 'border-slate-200 text-slate-600'}`}><Eraser className="w-3.5 h-3.5" />ลบ</button>
           {!locked && <span className="text-xs text-rose-500">* ต้องล็อกวันทำการก่อน จึงจะลง OT ได้</span>}
+          <div className="ml-auto flex items-center gap-2">
+            <button onClick={() => setShowExt((s) => !s)} className="flex items-center gap-1 text-xs px-2 py-1.5 rounded border border-amber-300 text-amber-700 bg-amber-50"><UserPlus className="w-3.5 h-3.5" />เพิ่มคนนอกหน่วย</button>
+            {showExt && (
+              <select onChange={(e) => { const id = Number(e.target.value); if (id && !externalIds.includes(id)) setExternalIds([...externalIds, id]); setShowExt(false); }} defaultValue="" className="text-xs border border-slate-300 rounded px-2 py-1.5 max-w-[220px]">
+                <option value="">— เลือกบุคลากรจากวอร์ดอื่น —</option>
+                {allEmployees.filter((e) => !employees.some((w) => w.id === e.id) && !externalIds.includes(e.id)).map((e) => (
+                  <option key={e.id} value={e.id}>{e.prefix}{e.firstName} {e.lastName ?? ''} ({e.positionText ?? e.role})</option>
+                ))}
+              </select>
+            )}
+          </div>
         </div>
       )}
+      {externalIds.length > 0 && <p className="text-xs text-amber-600 no-print">* แถวสีเหลือง = คนนอกหน่วย (ลงได้เฉพาะ OT ไม่นับวันทำการ)</p>}
 
       {toast && <div className={`text-sm rounded-lg px-3 py-2 ${toast.kind === 'ok' ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>{toast.msg}</div>}
 
@@ -301,17 +329,18 @@ export default function ScheduleView({ role, wards, wardId, year, month }: Props
               </tr>
             </thead>
             <tbody>
-              {employees.map((emp) => {
+              {rows.map((emp) => {
                 const t = personTotals(emp.id);
+                const ext = isExternal(emp.id);
                 return (
-                  <tr key={emp.id} className="hover:bg-slate-50/50">
+                  <tr key={emp.id} className={`hover:bg-slate-50/50 ${ext ? 'bg-amber-50/40' : ''}`}>
                     <td className="sticky left-0 bg-white z-10 px-3 py-1.5 border-b border-slate-100 align-top">
-                      <div className="font-medium text-slate-700">{emp.prefix}{emp.firstName} {emp.lastName ?? ''}</div>
+                      <div className="font-medium text-slate-700">{emp.prefix}{emp.firstName} {emp.lastName ?? ''}{ext && <span className="ml-1 text-[10px] text-amber-600">(นอกหน่วย)</span>}</div>
                       <div className="text-[11px] text-slate-400">{emp.positionText}</div>
                     </td>
                     {days.map((d) => {
                       const c = cells[key(emp.id, d)];
-                      const nm = metaFor(c?.normalCode);
+                      const nm = ext ? null : metaFor(c?.normalCode);
                       const ot = metaFor(c?.otCode);
                       return (
                         <td key={d} onClick={() => paint(emp.id, d)}
@@ -391,7 +420,7 @@ export default function ScheduleView({ role, wards, wardId, year, month }: Props
       {/* Hidden on screen; rendered only when printing (ตราครุฑ government form) */}
       <PrintableRoster
         wardName={wardName} month={month} year={year} ceYear={ceYear} days={days}
-        employees={employees} cells={cells} signers={signers} note={roster?.note ?? null}
+        employees={rows} cells={cells} signers={signers} note={noteText || null}
       />
     </div>
   );
