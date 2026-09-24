@@ -102,6 +102,27 @@ export default function DailyForms({
           <div><div>(ลงชื่อ) ..............................</div><div>ผู้รับรอง</div></div>
         </div>
       </div>
+
+      {/* 4) สรุปรายชื่อแนบบันทึก (form2-2) */}
+      <div className="gov-form" style={{ ...paper, pageBreakBefore: 'always' }}>
+        <div style={{ textAlign: 'center', fontWeight: 700, fontSize: 17, marginBottom: 8 }}>รายชื่อแนบเบิกค่าจ้างลูกจ้างชั่วคราว (รายวัน) {wardName}</div>
+        <table style={{ fontSize: 13 }}>
+          <thead><tr><th style={{ width: 40 }}>ลำดับ</th><th>ชื่อ - สกุล</th><th>ตำแหน่ง</th><th style={{ width: 100 }}>จำนวนเงิน</th></tr></thead>
+          <tbody>
+            {daily.map((e, i) => (
+              <tr key={e.id}><td style={{ textAlign: 'center' }}>{toThaiDigits(i + 1)}</td><td>{e.prefix}{e.firstName} {e.lastName ?? ''}</td><td style={{ fontSize: 11 }}>{e.positionText ?? ''}</td><td style={{ textAlign: 'right' }}>{toThaiDigits(wageOf(e).toLocaleString('th-TH'))}</td></tr>
+            ))}
+            <tr style={{ fontWeight: 700 }}><td colSpan={3} style={{ textAlign: 'right' }}>รวมเป็นเงินทั้งสิ้น</td><td style={{ textAlign: 'right' }}>{toThaiDigits(total.toLocaleString('th-TH'))}</td></tr>
+          </tbody>
+        </table>
+        <div style={{ fontSize: 13, marginTop: 6 }}>จำนวนเงิน (ตัวอักษร) : {thaiBahtText(total)}</div>
+        <div style={{ fontSize: 13 }}>ประจำเดือน {monthName} {toThaiDigits(year)} จำนวน {toThaiDigits(daily.length)} ราย</div>
+        <div style={{ textAlign: 'center', marginTop: 30, fontSize: 14 }}>
+          <div>(ลงชื่อ) ...............................................................</div>
+          <div>( {controller?.name ?? '.........................................'} )</div>
+          <div>{controller?.title ?? 'หัวหน้ากลุ่มงาน'}</div>
+        </div>
+      </div>
     </div>
   );
 }
