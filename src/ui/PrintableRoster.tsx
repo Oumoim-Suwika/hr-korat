@@ -22,7 +22,7 @@ export default function PrintableRoster({
   const approver = signers.find((s) => s.signerRole === 'approver');
 
   return (
-    <div className="print-sheet gov-form" style={{ fontSize: 11, padding: '4mm' }}>
+    <div className="gov-form print-landscape" style={{ fontSize: 11, padding: '4mm' }}>
       {/* Header with ตราครุฑ */}
       <div style={{ textAlign: 'center', marginBottom: 4 }}>
         <img src="/garuda.png" alt="ตราครุฑ" style={{ height: 46, margin: '0 auto 2px' }} />

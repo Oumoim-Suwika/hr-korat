@@ -77,8 +77,8 @@ export default function DailyForms({
         <div style={{ fontSize: 13, marginTop: 6 }}>({thaiBahtText(total)})</div>
       </div>
 
-      {/* 3) timesheet — shows working days from the roster */}
-      <div className="gov-form" style={paper}>
+      {/* 3) timesheet — shows working days from the roster (landscape, 31 days) */}
+      <div className="gov-form print-landscape" style={{ ...paper, maxWidth: 'none' }}>
         <div style={{ textAlign: 'center', fontWeight: 700, fontSize: 18 }}>ใบลงเวลาปฏิบัติงาน (รายวัน)</div>
         <div style={{ textAlign: 'center', fontSize: 14, marginBottom: 8 }}>{wardName} ประจำเดือน {monthName} {toThaiDigits(year)}</div>
         <table style={{ fontSize: 10 }}>

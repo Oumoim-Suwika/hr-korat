@@ -417,11 +417,13 @@ export default function ScheduleView({ role, wards, wardId, year, month }: Props
         </div>
       )}
 
-      {/* Hidden on screen; rendered only when printing (ตราครุฑ government form) */}
-      <PrintableRoster
-        wardName={wardName} month={month} year={year} ceYear={ceYear} days={days}
-        employees={rows} cells={cells} signers={signers} note={noteText || null}
-      />
+      {/* Hidden on screen; rendered only when printing (ตราครุฑ government form, landscape) */}
+      <div className="print-sheet">
+        <PrintableRoster
+          wardName={wardName} month={month} year={year} ceYear={ceYear} days={days}
+          employees={rows} cells={cells} signers={signers} note={noteText || null}
+        />
+      </div>
     </div>
   );
 }

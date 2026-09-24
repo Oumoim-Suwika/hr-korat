@@ -6,11 +6,16 @@
 .print-sheet { display: none; }
 
 @media print {
-  @page { size: A4 landscape; margin: 8mm; }
+  /* Default = A4 portrait (บันทึกข้อความ/หลักฐานการจ่าย/ใบสำคัญ/สรุปรายชื่อ) */
+  @page { size: A4 portrait; margin: 10mm; }
+  /* Named landscape page for wide tables (ตารางเวร / ใบลงเวลา 31 วัน) */
+  @page landscapePage { size: A4 landscape; margin: 8mm; }
   body * { visibility: hidden; }
   .print-sheet, .print-sheet * { visibility: visible; }
   .print-sheet { display: block; position: absolute; inset: 0; width: 100%; }
   .no-print { display: none !important; }
+  /* Elements that should print in landscape (orientation change forces a new page) */
+  .print-landscape { page: landscapePage; }
 }
 
 /* TH Sarabun-style face for official documents (feedback: TH Sarabun IT9/PSK).
