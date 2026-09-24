@@ -101,7 +101,7 @@ export default function AppShell() {
   const renderView = () => {
     if (loading || wardId == null) return <div className="grid place-items-center py-20 text-slate-400"><Loader2 className="w-6 h-6 animate-spin" /></div>;
     switch (tab) {
-      case 'dashboard': return <DashboardView wardName={wardName} wardId={wardId} year={year} month={month} />;
+      case 'dashboard': return <DashboardView year={year} month={month} />;
       case 'schedule': return <ScheduleView role={role} wards={wards} wardId={wardId} year={year} month={month} />;
       case 'daily': return <DailyView wardName={wardName} wardId={wardId} year={year} month={month} />;
       case 'personnel': return <PersonnelView wardId={wardId} wardName={wardName} role={role} />;
@@ -116,7 +116,7 @@ export default function AppShell() {
       case 'payroll': return <PayrollView wardName={wardName} wardId={wardId} year={year} month={month} />;
       case 'documents': return <DocumentsView wardName={wardName} wardPhone={ward?.phone} wardId={wardId} year={year} month={month} />;
       case 'history': return <FormHistoryView wardId={wardId} onOpen={(y, m) => { setYear(y); setMonth(m); setTab('documents'); }} />;
-      case 'reports': return <ReportsView wardName={wardName} wardId={wardId} year={year} month={month} />;
+      case 'reports': return <ReportsView year={year} month={month} />;
       case 'audit': return <AuditView />;
       case 'users': return <UsersView />;
       case 'settings': return <SettingsView />;

@@ -37,6 +37,35 @@ export function computeClaim(emp: Employee, cells: CellMap, days: number[]): Cla
   return { employee: emp, otCount, amount, byCode };
 }
 
+/** Aggregate roster data across ALL wards for a month (for dashboard/reports). */
+export function useAllWardsData(year: number, month: number) {
+  const [wards, setWards] = useState<import('../api/client').Ward[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [cells, setCells] = useState<CellMap>({});
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const ws = await api.wards();
+      setWards(ws);
+      const all = await api.allEmployees();
+      setEmployees(all);
+      const rosters = await Promise.all(ws.map((w) => api.getRoster(w.id, year, month)));
+      const map: CellMap = {};
+      for (const r of rosters) for (const c of r.cells) map[cellKey(c.employeeId, c.day)] = { normalCode: c.normalCode, otCode: c.otCode };
+      setCells(map);
+    } finally { setLoading(false); }
+  }, [year, month]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const ceYear = year - 543;
+  const daysInMonth = new Date(ceYear, month, 0).getDate();
+  const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+  return { wards, employees, cells, days, ceYear, loading, reload: load };
+}
+
 export function useRosterData(wardId: number, year: number, month: number) {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [cells, setCells] = useState<CellMap>({});
