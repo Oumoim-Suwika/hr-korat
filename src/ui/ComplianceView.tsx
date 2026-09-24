@@ -1,8 +1,11 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { useRosterData } from '../lib/useRosterData';
 import { checkRoster, DEFAULT_LABOR_CONFIG, type LaborConfig } from '../lib/laborCheck';
+import { api } from '../api/client';
 import { THAI_MONTHS } from '../data';
-import { ShieldCheck, AlertTriangle, AlertCircle, CheckCircle2, Loader2, SlidersHorizontal } from 'lucide-react';
+import { ShieldCheck, AlertTriangle, AlertCircle, CheckCircle2, Loader2, SlidersHorizontal, Building2 } from 'lucide-react';
+
+interface CrossUnit { empId: number; name: string; day: number; detail: string; severity: 'error' | 'warning'; }
 
 export default function ComplianceView({ wardName, wardId, year, month }: {
   wardName: string; wardId: number; year: number; month: number;
@@ -10,6 +13,39 @@ export default function ComplianceView({ wardName, wardId, year, month }: {
   const { employees, cells, days, loading } = useRosterData(wardId, year, month);
   const [cfg, setCfg] = useState<LaborConfig>(DEFAULT_LABOR_CONFIG);
   const [showCfg, setShowCfg] = useState(false);
+
+  // Cross-unit conflict check (ตรวจซ้ำซ้อนข้ามหน่วยงาน): a person working in >1
+  // ward on the same day. Two normal shifts = real conflict (error); a normal +
+  // OT/external help across wards = allowed, shown as info (warning).
+  const [crossUnit, setCrossUnit] = useState<CrossUnit[]>([]);
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const [ws, all] = await Promise.all([api.wards(), api.allEmployees()]);
+        const nameOf = (id: number) => { const e = all.find((x) => x.id === id); return e ? `${e.prefix ?? ''}${e.firstName} ${e.lastName ?? ''}`.trim() : `#${id}`; };
+        const rosters = await Promise.all(ws.map((w) => api.getRoster(w.id, year, month).then((r) => ({ name: w.name, cells: r.cells })).catch(() => ({ name: w.name, cells: [] as any[] }))));
+        const map = new Map<string, { ward: string; normal: boolean }[]>();
+        for (const r of rosters) for (const c of r.cells) {
+          const working = !!(c.normalCode && c.normalCode !== 'ออฟ');
+          if (!working && !c.otCode) continue;
+          const k = `${c.employeeId}-${c.day}`;
+          const arr = map.get(k) ?? []; arr.push({ ward: r.name, normal: working }); map.set(k, arr);
+        }
+        const out: CrossUnit[] = [];
+        for (const [k, arr] of map) {
+          const wards = Array.from(new Set(arr.map((a) => a.ward)));
+          if (wards.length < 2) continue;
+          const [empId, day] = k.split('-').map(Number);
+          const bothNormal = arr.filter((a) => a.normal).length > 1;
+          out.push({ empId, name: nameOf(empId), day, severity: bothNormal ? 'error' : 'warning',
+            detail: `วันที่ ${day} ปฏิบัติงานข้ามหน่วย (${wards.join(' + ')})${bothNormal ? ' — เวรปกติซ้ำซ้อน ต้องแก้ไข' : ' — เป็น OT/ช่วยข้ามหน่วย (อนุญาต)'}` });
+        }
+        if (alive) setCrossUnit(out.sort((a, b) => a.day - b.day));
+      } catch { if (alive) setCrossUnit([]); }
+    })();
+    return () => { alive = false; };
+  }, [year, month]);
 
   const violations = useMemo(() => checkRoster(employees, cells, days, cfg), [employees, cells, days, cfg]);
   const errors = violations.filter((v) => v.severity === 'error');
@@ -69,6 +105,27 @@ export default function ComplianceView({ wardName, wardId, year, month }: {
               ))}
             </div>
           )}
+          {/* Cross-unit conflict check (ตรวจซ้ำซ้อนข้ามหน่วยงาน — ทั้งโรงพยาบาล) */}
+          <div className="pt-2">
+            <h3 className="text-sm font-semibold text-slate-700 flex items-center gap-2 mb-2"><Building2 className="w-4 h-4 text-[#0F3575]" />ตรวจซ้ำซ้อนข้ามหน่วยงาน (ทั้งโรงพยาบาล)</h3>
+            {crossUnit.length === 0 ? (
+              <div className="bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-3 text-sm text-emerald-700 flex items-center gap-2"><CheckCircle2 className="w-4 h-4" />ไม่พบการลงเวรปกติซ้ำซ้อนข้ามหน่วยงานในเดือนนี้</div>
+            ) : (
+              <div className="bg-white border border-slate-200 rounded-lg divide-y divide-slate-100">
+                {crossUnit.map((x, i) => (
+                  <div key={i} className="flex items-start gap-3 px-4 py-3">
+                    {x.severity === 'error'
+                      ? <AlertCircle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
+                      : <AlertTriangle className="w-5 h-5 text-sky-500 shrink-0 mt-0.5" />}
+                    <div className="min-w-0">
+                      <span className="font-medium text-slate-700">{x.name}</span>
+                      <div className="text-sm text-slate-500 mt-0.5">{x.detail}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
           <p className="text-xs text-slate-400">* เกณฑ์อ้างอิงแนวปฏิบัติพยาบาลภาครัฐและหลักการ พ.ร.บ.คุ้มครองแรงงาน (วันหยุดประจำสัปดาห์ / เวลาพักระหว่างเวร) ปรับได้ที่ปุ่ม "ตั้งเกณฑ์"</p>
         </>
       )}
