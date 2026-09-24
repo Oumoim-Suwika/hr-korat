@@ -10,6 +10,9 @@ const TYPE_LABEL: Record<string, string> = {
   ot: 'ขอขึ้น OT',
   shift_add: 'ขอขึ้นเวรเพิ่ม',
 };
+// ยกเวร (cancel shift, no replacement) is modelled as a shift_change to 'ออฟ'.
+const labelFor = (r: { type: string; toCode?: string | null }) =>
+  r.type === 'shift_change' && r.toCode === 'ออฟ' ? 'ยกเวร (ไม่มีคนแทน)' : (TYPE_LABEL[r.type] ?? r.type);
 const STATUS_LABEL: Record<string, { t: string; c: string }> = {
   pending: { t: 'รออนุมัติ', c: 'bg-amber-100 text-amber-700' },
   approved: { t: 'อนุมัติแล้ว', c: 'bg-emerald-100 text-emerald-700' },
@@ -72,7 +75,13 @@ export default function RequestsView({ role, wardId, year, month, myEmployeeId, 
       showToast('err', 'ยังไม่ได้ระบุ "หัวหน้าผู้ควบคุม" ในตารางเวร — โปรดระบุก่อนอนุมัติการเปลี่ยนเวร');
       return;
     }
-    try { await api.decideRequest(id, decision); showToast('ok', decision === 'approved' ? (reqType === 'shift_change' ? `อนุมัติโดยหัวหน้าผู้ควบคุม: ${controllerName}` : 'อนุมัติแล้ว') : 'ไม่อนุมัติแล้ว'); load(); }
+    try {
+      await api.decideRequest(id, decision);
+      const applies = decision === 'approved' && ['leave', 'shift_change', 'shift_add'].includes(reqType ?? '');
+      const base = decision === 'approved' ? (reqType === 'shift_change' && controllerName ? `อนุมัติโดยหัวหน้าผู้ควบคุม: ${controllerName}` : 'อนุมัติแล้ว') : 'ไม่อนุมัติแล้ว';
+      showToast('ok', applies ? `${base} · อัปเดตลงตารางเวรอัตโนมัติแล้ว` : base);
+      load();
+    }
     catch (e: any) { showToast('err', e?.message || 'ไม่สำเร็จ'); }
   };
 
@@ -121,7 +130,7 @@ export default function RequestsView({ role, wardId, year, month, myEmployeeId, 
               <div key={r.id} className="flex items-center gap-3 px-4 py-3">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-medium text-slate-700">{TYPE_LABEL[r.type] ?? r.type}</span>
+                    <span className="font-medium text-slate-700">{labelFor(r)}</span>
                     <span className="text-sm text-slate-500">{empName(r.employeeId)}</span>
                     {r.day && <span className="text-xs text-slate-400">วันที่ {r.day}{r.toDay ? `-${r.toDay}` : ''}</span>}
                     {(r.fromCode || r.toCode) && <span className="text-xs text-slate-400">{r.fromCode ?? '—'} → {r.toCode ?? '—'}</span>}
@@ -156,7 +165,7 @@ function RequestForm({ employees, wardId, year, month, fixedEmployeeId, defaultT
   fixedEmployeeId: number | null; defaultType?: 'leave' | 'shift_change' | 'ot' | 'shift_add';
   onDone: (msg: string) => void; onError: (msg: string) => void;
 }) {
-  const [type, setType] = useState<'leave' | 'shift_change' | 'ot' | 'shift_add'>(defaultType ?? 'leave');
+  const [type, setType] = useState<'leave' | 'shift_change' | 'ot' | 'shift_add' | 'cancel'>(defaultType ?? 'leave');
   const [employeeId, setEmployeeId] = useState<number | null>(fixedEmployeeId ?? employees[0]?.id ?? null);
   const [day, setDay] = useState<number>(1);
   const [toDay, setToDay] = useState<number | ''>('');
@@ -170,10 +179,13 @@ function RequestForm({ employees, wardId, year, month, fixedEmployeeId, defaultT
     if (!employeeId) { onError('ยังไม่ได้เลือกบุคลากร'); return; }
     setBusy(true);
     try {
+      const isCancel = type === 'cancel';
       await api.createRequest({
-        type, employeeId, wardId, year, month, day,
+        type: isCancel ? 'shift_change' : type, employeeId, wardId, year, month, day,
         toDay: toDay === '' ? null : Number(toDay),
-        fromCode: fromCode || null, toCode: toCode || null, reason: reason || null,
+        fromCode: fromCode || null,
+        toCode: isCancel ? 'ออฟ' : (toCode || null),
+        reason: reason || null,
       });
       onDone('ส่งคำขอแล้ว');
     } catch (err: any) {
@@ -189,8 +201,9 @@ function RequestForm({ employees, wardId, year, month, fixedEmployeeId, defaultT
       <label className="text-sm">
         <span className="block text-slate-500 mb-1">ประเภท</span>
         <select value={type} onChange={(e) => setType(e.target.value as any)} className={field}>
-          <option value="leave">ขอลา</option>
-          <option value="shift_change">ขอเปลี่ยนเวร</option>
+          <option value="leave">ขอลา / ไปราชการ</option>
+          <option value="shift_change">ขอเปลี่ยนเวร (มีคนแทน)</option>
+          <option value="cancel">ยกเวร (ไม่มีคนแทน)</option>
           <option value="ot">ขอขึ้น OT</option>
           <option value="shift_add">ขอขึ้นเวรเพิ่ม</option>
         </select>
@@ -214,6 +227,9 @@ function RequestForm({ employees, wardId, year, month, fixedEmployeeId, defaultT
           <label className="text-sm"><span className="block text-slate-500 mb-1">เวรเดิม</span><input value={fromCode} onChange={(e) => setFromCode(e.target.value)} placeholder="เช่น ช" className={field} /></label>
           <label className="text-sm"><span className="block text-slate-500 mb-1">เวรใหม่</span><input value={toCode} onChange={(e) => setToCode(e.target.value)} placeholder="เช่น บ" className={field} /></label>
         </>
+      )}
+      {type === 'cancel' && (
+        <label className="text-sm sm:col-span-2"><span className="block text-slate-500 mb-1">เวรที่ต้องการยก (จะเปลี่ยนเป็น "ออฟ" เมื่ออนุมัติ)</span><input value={fromCode} onChange={(e) => setFromCode(e.target.value)} placeholder="เช่น ด (เวรดึกที่ยก)" className={field} /></label>
       )}
       {type === 'ot' && (
         <label className="text-sm"><span className="block text-slate-500 mb-1">รหัส OT</span><input value={toCode} onChange={(e) => setToCode(e.target.value)} placeholder="เช่น BD / ชot" className={field} /></label>

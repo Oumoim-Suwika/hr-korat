@@ -253,8 +253,38 @@ app.post('/api/requests/:id/decide', requireAuth, requireRole('supervisor', 'fin
     .set({ status: parsed.data.decision, decidedBy: getUser(c).id, decidedAt: new Date() })
     .where(eq(schema.requests.id, id)).returning();
   if (!rows[0]) return c.json({ error: 'not_found' }, 404);
-  await audit(getUser(c).id, 'request', String(id), parsed.data.decision);
-  return c.json({ request: rows[0] });
+
+  // On approval, reflect the change into the ward roster so ตารางเวร stays in
+  // sync automatically (ลา/ไปราชการ, เปลี่ยนเวร, ยกเวร, ขึ้นเวรเพิ่ม).
+  const r = rows[0];
+  let applied = false;
+  if (parsed.data.decision === 'approved') {
+    const ros = await db.select().from(schema.rosters)
+      .where(and(eq(schema.rosters.wardId, r.wardId), eq(schema.rosters.year, r.year), eq(schema.rosters.month, r.month))).limit(1);
+    const rid = ros[0]?.id;
+    if (rid && r.day) {
+      const OT_CODES = ['ชot', 'บot', 'ดot', 'BD', 'OR'];
+      const applyCell = async (day: number, set: { normalCode?: string; otCode?: string }) => {
+        await db.insert(schema.rosterCells)
+          .values({ rosterId: rid, employeeId: r.employeeId, day, normalCode: set.normalCode ?? null, otCode: set.otCode ?? null })
+          .onConflictDoUpdate({ target: [schema.rosterCells.rosterId, schema.rosterCells.employeeId, schema.rosterCells.day], set });
+      };
+      if (r.type === 'leave') {
+        const training = /อบรม|ราชการ|ประชุม|สัมมนา/.test(r.reason ?? '');
+        const from = r.day, to = r.toDay ?? r.day;
+        for (let d = from; d <= to; d++) await applyCell(d, { normalCode: training ? 'T' : 'V' });
+        applied = true;
+      } else if (r.type === 'shift_change' && r.toCode) {
+        await applyCell(r.day, { normalCode: r.toCode });   // toCode='ออฟ' = ยกเวร
+        applied = true;
+      } else if (r.type === 'shift_add' && r.toCode) {
+        await applyCell(r.day, OT_CODES.includes(r.toCode) ? { otCode: r.toCode } : { normalCode: r.toCode });
+        applied = true;
+      }
+    }
+  }
+  await audit(getUser(c).id, 'request', String(id), parsed.data.decision, { type: r.type, appliedToRoster: applied });
+  return c.json({ request: rows[0], appliedToRoster: applied });
 });
 
 // ---- roster list (form history) --------------------------------------------
