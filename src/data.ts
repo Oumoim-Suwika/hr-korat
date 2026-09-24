@@ -173,6 +173,32 @@ export const THAI_MONTHS = [
 ];
 
 export const THAI_DAYS_SHORT = ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'];
+export const THAI_DAYS_FULL = ['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์'];
+
+/** English names for the official 2569 (2026) holidays (for the bilingual list). */
+export const HOLIDAY_EN_2026: Record<string, string> = {
+  '01-01': "New Year's Day",
+  '03-03': 'Makha Bucha Day',
+  '04-06': 'Chakri Memorial Day',
+  '04-13': 'Songkran Festival',
+  '04-14': 'Songkran Festival',
+  '04-15': 'Songkran Festival',
+  '05-01': 'National Labour Day',
+  '05-04': 'Coronation Day',
+  '05-31': 'Visakha Bucha Day',
+  '06-01': 'Substitution for Visakha Bucha Day',
+  '06-03': "H.M. Queen Suthida's Birthday",
+  '07-28': "H.M. King Vajiralongkorn's Birthday",
+  '07-29': 'Asarnha Bucha Day',
+  '07-30': 'Beginning of Vassa (Khao Phansa)',
+  '08-12': "Mother's Day (H.M. Queen Sirikit's Birthday)",
+  '10-13': 'King Bhumibol Memorial Day',
+  '10-23': 'Chulalongkorn Day',
+  '12-05': "National Day / Father's Day",
+  '12-07': 'Substitution for National Day',
+  '12-10': 'Constitution Day',
+  '12-31': "New Year's Eve",
+};
 
 export const THAI_HOLIDAYS_2026: Record<string, string> = {
   '01-01': 'วันขึ้นปีใหม่',
