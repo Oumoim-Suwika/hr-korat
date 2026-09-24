@@ -30,6 +30,18 @@ export default function PayrollView({ wardName, wardId, year, month }: { wardNam
     downloadFile(`payroll_${wardName}_${monthLabel}.csv`, [header, ...body].map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n'));
   };
 
+  // Full export ready to feed the hospital's payroll program (per-person, with
+  // employee code, bank account, period and amount columns).
+  const exportPayrollProgram = () => {
+    const period = `${year}${String(month).padStart(2, '0')}`; // งวด เช่น 256907
+    const header = ['รหัสพนักงาน', 'คำนำหน้า', 'ชื่อ', 'นามสกุล', 'ตำแหน่ง', 'ประเภทจ้าง', 'เลขที่บัญชี', 'งวด', 'เงินเดือนฐาน', 'ค่าตอบแทน OT', 'รวมจ่าย'];
+    const body = rows.filter((r) => r.net > 0).map((r) => [
+      r.e.employeeCode ?? '', r.e.prefix ?? '', r.e.firstName, r.e.lastName ?? '', r.e.positionText ?? '', r.e.paymentType,
+      r.e.bankAccount ?? '', period, r.base.toFixed(2), r.ot.toFixed(2), r.net.toFixed(2),
+    ]);
+    downloadFile(`ส่งเข้าโปรแกรมเงินเดือน_${wardName}_${period}.csv`, [header, ...body].map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n'));
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -37,7 +49,10 @@ export default function PayrollView({ wardName, wardId, year, month }: { wardNam
           <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2"><Wallet className="w-5 h-5 text-[#0F3575]" />เงินเดือน & ค่าตอบแทนรวม (Payroll)</h2>
           <p className="text-sm text-slate-500">{wardName} · {monthLabel}</p>
         </div>
-        <button onClick={exportCsv} disabled={!rows.length} className="flex items-center gap-1.5 text-sm text-white bg-[#0F3575] px-3 py-2 rounded-lg disabled:opacity-50"><Download className="w-4 h-4" />ดาวน์โหลดสรุป (CSV)</button>
+        <div className="flex gap-2">
+          <button onClick={exportCsv} disabled={!rows.length} className="flex items-center gap-1.5 text-sm text-slate-700 bg-white border border-slate-300 px-3 py-2 rounded-lg disabled:opacity-50"><Download className="w-4 h-4" />สรุป (CSV)</button>
+          <button onClick={exportPayrollProgram} disabled={!rows.length} className="flex items-center gap-1.5 text-sm text-white bg-[#0F3575] px-3 py-2 rounded-lg disabled:opacity-50"><Download className="w-4 h-4" />ส่งเข้าโปรแกรมเงินเดือน</button>
+        </div>
       </div>
 
       <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-sm text-amber-700">

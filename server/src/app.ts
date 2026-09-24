@@ -445,6 +445,75 @@ app.put('/api/ward-shift-times', requireAuth, requireRole('supervisor', 'admin')
   return c.json({ ok: true });
 });
 
+// ---- actual time-clock scans ------------------------------------------------
+app.get('/api/time-scans', requireAuth, async (c) => {
+  const wardId = Number(c.req.query('wardId')), year = Number(c.req.query('year')), month = Number(c.req.query('month'));
+  const rows = await db.select().from(schema.timeScans)
+    .where(and(eq(schema.timeScans.wardId, wardId), eq(schema.timeScans.year, year), eq(schema.timeScans.month, month)));
+  return c.json({ scans: rows });
+});
+app.post('/api/time-scans/import', requireAuth, requireRole('supervisor', 'finance', 'admin'), async (c) => {
+  const b = await c.req.json().catch(() => ({}));
+  const p = z.object({
+    wardId: z.number(), year: z.number(), month: z.number(),
+    items: z.array(z.object({ employeeId: z.number(), day: z.number().int().min(1).max(31), timeIn: z.string().nullable().optional(), timeOut: z.string().nullable().optional() })),
+  }).safeParse(b);
+  if (!p.success) return c.json({ error: 'invalid_input' }, 400);
+  for (const it of p.data.items) {
+    await db.insert(schema.timeScans)
+      .values({ wardId: p.data.wardId, employeeId: it.employeeId, year: p.data.year, month: p.data.month, day: it.day, timeIn: it.timeIn ?? null, timeOut: it.timeOut ?? null, source: 'import' })
+      .onConflictDoUpdate({ target: [schema.timeScans.employeeId, schema.timeScans.year, schema.timeScans.month, schema.timeScans.day], set: { timeIn: it.timeIn ?? null, timeOut: it.timeOut ?? null } });
+  }
+  await audit(getUser(c).id, 'time_scans', String(p.data.wardId), 'import', { count: p.data.items.length });
+  return c.json({ ok: true, count: p.data.items.length });
+});
+
+// ---- OR procedures (config) + cases (log) -----------------------------------
+app.get('/api/or-procedures', requireAuth, async (c) => {
+  const rows = await db.select().from(schema.orProcedures).where(eq(schema.orProcedures.active, true));
+  return c.json({ procedures: rows });
+});
+app.post('/api/or-procedures', requireAuth, requireRole('supervisor', 'finance', 'admin'), async (c) => {
+  const b = await c.req.json().catch(() => ({}));
+  const p = z.object({
+    id: z.number().optional(), name: z.string().min(1), mode: z.enum(['case', 'hour']).default('case'),
+    roleRates: z.record(z.number()), otThresholdHours: z.number().default(0), otBonusPerHour: z.number().default(0),
+  }).safeParse(b);
+  if (!p.success) return c.json({ error: 'invalid_input' }, 400);
+  const { id, ...vals } = p.data;
+  const rows = id
+    ? await db.update(schema.orProcedures).set(vals as any).where(eq(schema.orProcedures.id, id)).returning()
+    : await db.insert(schema.orProcedures).values(vals as any).returning();
+  await audit(getUser(c).id, 'or_procedure', String(rows[0]?.id ?? ''), id ? 'update' : 'create');
+  return c.json({ procedure: rows[0] });
+});
+app.delete('/api/or-procedures/:id', requireAuth, requireRole('supervisor', 'finance', 'admin'), async (c) => {
+  await db.update(schema.orProcedures).set({ active: false }).where(eq(schema.orProcedures.id, Number(c.req.param('id'))));
+  return c.json({ ok: true });
+});
+app.get('/api/or-cases', requireAuth, async (c) => {
+  const wardId = Number(c.req.query('wardId')), year = Number(c.req.query('year')), month = Number(c.req.query('month'));
+  const rows = await db.select().from(schema.orCases)
+    .where(and(eq(schema.orCases.wardId, wardId), eq(schema.orCases.year, year), eq(schema.orCases.month, month))).orderBy(schema.orCases.day);
+  return c.json({ cases: rows });
+});
+app.post('/api/or-cases', requireAuth, async (c) => {
+  const b = await c.req.json().catch(() => ({}));
+  const p = z.object({
+    wardId: z.number(), year: z.number(), month: z.number(), day: z.number().int().min(1).max(31),
+    procedureId: z.number().nullable().optional(), procedureName: z.string().nullable().optional(),
+    hours: z.number().default(0), participants: z.array(z.object({ employeeId: z.number(), name: z.string(), slot: z.string() })), note: z.string().nullable().optional(),
+  }).safeParse(b);
+  if (!p.success) return c.json({ error: 'invalid_input' }, 400);
+  const rows = await db.insert(schema.orCases).values({ ...p.data, createdBy: getUser(c).id } as any).returning();
+  await audit(getUser(c).id, 'or_case', String(rows[0]?.id ?? ''), 'create', { day: p.data.day });
+  return c.json({ case: rows[0] });
+});
+app.delete('/api/or-cases/:id', requireAuth, async (c) => {
+  await db.delete(schema.orCases).where(eq(schema.orCases.id, Number(c.req.param('id'))));
+  return c.json({ ok: true });
+});
+
 // ---- holidays ---------------------------------------------------------------
 app.get('/api/holidays', requireAuth, async (c) => {
   const year = Number(c.req.query('year'));

@@ -139,6 +139,23 @@ export const api = {
   setRateSettings: (items: { role: string; code: string; amount: number }[]) =>
     request<{ ok: boolean }>('PUT', '/api/rate-settings', { items }),
 
+  // actual time-clock scans
+  getTimeScans: (wardId: number, year: number, month: number) =>
+    request<{ scans: any[] }>('GET', `/api/time-scans?wardId=${wardId}&year=${year}&month=${month}`).then((r) => r.scans),
+  importTimeScans: (wardId: number, year: number, month: number, items: { employeeId: number; day: number; timeIn?: string | null; timeOut?: string | null }[]) =>
+    request<{ ok: boolean; count: number }>('POST', '/api/time-scans/import', { wardId, year, month, items }),
+
+  // OR procedures + cases
+  getOrProcedures: () => request<{ procedures: any[] }>('GET', '/api/or-procedures').then((r) => r.procedures),
+  saveOrProcedure: (p: { id?: number; name: string; mode: 'case' | 'hour'; roleRates: Record<string, number>; otThresholdHours: number; otBonusPerHour: number }) =>
+    request<{ procedure: any }>('POST', '/api/or-procedures', p).then((r) => r.procedure),
+  deleteOrProcedure: (id: number) => request<{ ok: boolean }>('DELETE', `/api/or-procedures/${id}`),
+  getOrCases: (wardId: number, year: number, month: number) =>
+    request<{ cases: any[] }>('GET', `/api/or-cases?wardId=${wardId}&year=${year}&month=${month}`).then((r) => r.cases),
+  createOrCase: (payload: { wardId: number; year: number; month: number; day: number; procedureId?: number | null; procedureName?: string | null; hours: number; participants: { employeeId: number; name: string; slot: string }[]; note?: string | null }) =>
+    request<{ case: any }>('POST', '/api/or-cases', payload).then((r) => r.case),
+  deleteOrCase: (id: number) => request<{ ok: boolean }>('DELETE', `/api/or-cases/${id}`),
+
   // per-ward shift times
   getWardShiftTimes: (wardId: number) => request<{ times: { code: string; startTime: string; endTime: string }[] }>('GET', `/api/ward-shift-times?wardId=${wardId}`).then((r) => r.times),
   setWardShiftTimes: (wardId: number, items: { code: string; startTime: string; endTime: string }[]) =>

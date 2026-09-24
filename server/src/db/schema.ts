@@ -73,6 +73,45 @@ export const wardShiftTimes = pgTable('ward_shift_times', {
   endTime: text('end_time').notNull(),     // "16.00"
 }, (t) => ({ uniq: uniqueIndex('ward_shift_time_idx').on(t.wardId, t.code) }));
 
+// ---- actual time-clock scans / เวลาสแกนจริง --------------------------------
+export const timeScans = pgTable('time_scans', {
+  id: serial('id').primaryKey(),
+  wardId: integer('ward_id').references(() => wards.id, { onDelete: 'cascade' }).notNull(),
+  employeeId: integer('employee_id').references(() => employees.id).notNull(),
+  year: integer('year').notNull(),
+  month: integer('month').notNull(),
+  day: integer('day').notNull(),
+  timeIn: text('time_in'),
+  timeOut: text('time_out'),
+  source: text('source').default('import').notNull(),
+}, (t) => ({ uniq: uniqueIndex('scan_emp_ymd_idx').on(t.employeeId, t.year, t.month, t.day) }));
+
+// ---- OR procedure compensation / หัตถการห้องผ่าตัด (เหมาเคส/เหมาชั่วโมง) -----
+export const orProcedures = pgTable('or_procedures', {
+  id: serial('id').primaryKey(),
+  name: text('name').notNull(),
+  mode: text('mode').default('case').notNull(),        // 'case' (เหมาเคส) | 'hour' (เหมาชั่วโมง)
+  roleRates: jsonb('role_rates').notNull(),            // { doctor, anesthetist, nurse, assistant }
+  otThresholdHours: doublePrecision('ot_threshold_hours').default(0).notNull(),
+  otBonusPerHour: doublePrecision('ot_bonus_per_hour').default(0).notNull(),
+  active: boolean('active').default(true).notNull(),
+});
+
+export const orCases = pgTable('or_cases', {
+  id: serial('id').primaryKey(),
+  wardId: integer('ward_id').references(() => wards.id).notNull(),
+  year: integer('year').notNull(),
+  month: integer('month').notNull(),
+  day: integer('day').notNull(),
+  procedureId: integer('procedure_id').references(() => orProcedures.id),
+  procedureName: text('procedure_name'),
+  hours: doublePrecision('hours').default(0).notNull(),
+  participants: jsonb('participants').notNull(),       // [{ employeeId, name, slot }]
+  note: text('note'),
+  createdBy: integer('created_by').references(() => users.id),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (t) => ({ scopeIdx: index('orcase_scope_idx').on(t.wardId, t.year, t.month) }));
+
 // ---- holidays -------------------------------------------------------------
 export const holidays = pgTable('holidays', {
   id: serial('id').primaryKey(),

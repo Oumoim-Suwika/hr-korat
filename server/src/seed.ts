@@ -305,6 +305,18 @@ export async function seed() {
     }
   }
 
+  // OR procedures — sample หัตถการ with per-role (หมอ/วิสัญญี/พยาบาล/ผู้ช่วย) rates
+  // + OT-hour bonus. Editable by supervisor/finance/admin; doctors log cases.
+  const orpN = await db.select({ n: sql<number>`count(*)` }).from(schema.orProcedures);
+  if (Number(orpN[0].n) === 0) {
+    await db.insert(schema.orProcedures).values([
+      { name: 'ผ่าตัดใหญ่ (Major)', mode: 'case', roleRates: { doctor: 3500, anesthetist: 2500, nurse: 1200, assistant: 800 }, otThresholdHours: 3, otBonusPerHour: 500 },
+      { name: 'ผ่าตัดเล็ก (Minor)', mode: 'case', roleRates: { doctor: 1500, anesthetist: 1000, nurse: 600, assistant: 400 }, otThresholdHours: 2, otBonusPerHour: 300 },
+      { name: 'ส่องกล้อง (Endoscopy)', mode: 'hour', roleRates: { doctor: 1000, anesthetist: 700, nurse: 400, assistant: 250 }, otThresholdHours: 0, otBonusPerHour: 0 },
+      { name: 'ผ่าตัดฉุกเฉินนอกเวลา (Emergency)', mode: 'case', roleRates: { doctor: 4000, anesthetist: 3000, nurse: 1500, assistant: 1000 }, otThresholdHours: 2, otBonusPerHour: 700 },
+    ] as any);
+  }
+
   // ---- daily-wage employee in U01 (for รายวัน forms) — idempotent ----------
   const u01b = wardByCode['U01'];
   if (u01b) {

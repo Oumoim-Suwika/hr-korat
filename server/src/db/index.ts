@@ -135,6 +135,45 @@ CREATE TABLE IF NOT EXISTS ward_shift_times (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS ward_shift_time_idx ON ward_shift_times (ward_id, code);
 
+CREATE TABLE IF NOT EXISTS time_scans (
+  id serial PRIMARY KEY,
+  ward_id integer NOT NULL REFERENCES wards(id) ON DELETE CASCADE,
+  employee_id integer NOT NULL REFERENCES employees(id),
+  year integer NOT NULL,
+  month integer NOT NULL,
+  day integer NOT NULL,
+  time_in text,
+  time_out text,
+  source text NOT NULL DEFAULT 'import'
+);
+CREATE UNIQUE INDEX IF NOT EXISTS scan_emp_ymd_idx ON time_scans (employee_id, year, month, day);
+
+CREATE TABLE IF NOT EXISTS or_procedures (
+  id serial PRIMARY KEY,
+  name text NOT NULL,
+  mode text NOT NULL DEFAULT 'case',
+  role_rates jsonb NOT NULL,
+  ot_threshold_hours double precision NOT NULL DEFAULT 0,
+  ot_bonus_per_hour double precision NOT NULL DEFAULT 0,
+  active boolean NOT NULL DEFAULT true
+);
+
+CREATE TABLE IF NOT EXISTS or_cases (
+  id serial PRIMARY KEY,
+  ward_id integer NOT NULL REFERENCES wards(id),
+  year integer NOT NULL,
+  month integer NOT NULL,
+  day integer NOT NULL,
+  procedure_id integer REFERENCES or_procedures(id),
+  procedure_name text,
+  hours double precision NOT NULL DEFAULT 0,
+  participants jsonb NOT NULL,
+  note text,
+  created_by integer REFERENCES users(id),
+  created_at timestamp NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS orcase_scope_idx ON or_cases (ward_id, year, month);
+
 CREATE TABLE IF NOT EXISTS positions (
   id serial PRIMARY KEY,
   name text NOT NULL,
