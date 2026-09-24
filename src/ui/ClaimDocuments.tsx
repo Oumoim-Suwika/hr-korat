@@ -85,7 +85,7 @@ export default function ClaimDocuments({
         <p style={{ textIndent: '2.5em', fontSize: 15 }}>จึงเรียนมาเพื่อโปรดพิจารณาอนุมัติ</p>
         <div style={{ textAlign: 'center', marginTop: 40, fontSize: 15 }}>
           <div>(ลงชื่อ) ..................................................</div>
-          <div>( {controller?.name ?? '.........................................'} )</div>
+          <div>( ......................................... )</div>
         </div>
       </div>
 
@@ -114,8 +114,8 @@ export default function ClaimDocuments({
         </table>
         <div style={{ fontSize: 13, marginTop: 6 }}>({thaiBahtText(total)})</div>
         <div style={{ display: 'flex', justifyContent: 'space-around', marginTop: 36, fontSize: 14, textAlign: 'center' }}>
-          <div><div>(ลงชื่อ) ....................................</div><div>( {controller?.name ?? '...........................'} )</div></div>
-          <div><div>(ลงชื่อ) ....................................</div><div>( {approver?.name ?? '...........................'} )</div></div>
+          <div><div>(ลงชื่อ) ....................................</div><div>( ........................... )</div></div>
+          <div><div>(ลงชื่อ) ....................................</div><div>( ........................... )</div></div>
         </div>
       </div>
 
@@ -163,8 +163,8 @@ export default function ClaimDocuments({
           </tbody>
         </table>
         <div style={{ display: 'flex', justifyContent: 'space-around', marginTop: 24, fontSize: 13, textAlign: 'center' }}>
-          <div><div>(ลงชื่อ) ..............................</div><div>( {controller?.name ?? '...........................'} )</div></div>
-          <div><div>(ลงชื่อ) ..............................</div><div>( {approver?.name ?? '...........................'} )</div></div>
+          <div><div>(ลงชื่อ) ..............................</div><div>( ........................... )</div></div>
+          <div><div>(ลงชื่อ) ..............................</div><div>( ........................... )</div></div>
         </div>
       </div>
     </div>

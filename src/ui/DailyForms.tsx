@@ -58,8 +58,7 @@ export default function DailyForms({
         <p style={{ fontSize: 15, marginTop: 8 }}>รวมเป็นเงินทั้งสิ้น {toThaiDigits(total.toLocaleString('th-TH'))} บาท ({thaiBahtText(total)}) จากเงินบำรุงโรงพยาบาลมหาราชนครราชสีมา</p>
         <div style={{ textAlign: 'center', marginTop: 34, fontSize: 15 }}>
           <div>(ลงชื่อ) ..................................................</div>
-          <div>( {controller?.name ?? '.........................................'} )</div>
-          <div>{controller?.title ?? ''}</div>
+          <div>( ......................................... )</div>
         </div>
       </div>
 
@@ -100,9 +99,14 @@ export default function DailyForms({
             ))}
           </tbody>
         </table>
+        <div style={{ fontSize: 11, marginTop: 6, display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+          <span><span style={{ display: 'inline-block', width: 12, height: 12, background: '#dbeafe', border: '1px solid #94a3b8', verticalAlign: 'middle', marginRight: 4 }} />= วันที่ลงปฏิบัติงาน (นับเป็นวันทำการ)</span>
+          <span><span style={{ display: 'inline-block', width: 12, height: 12, background: '#eee', border: '1px solid #94a3b8', verticalAlign: 'middle', marginRight: 4 }} />= วันหยุดเสาร์-อาทิตย์</span>
+          <span>คอลัมน์ "รวม" = จำนวนวันทำการของแต่ละคน (อ้างอิงจากตารางเวร)</span>
+        </div>
         <div style={{ display: 'flex', justifyContent: 'space-around', marginTop: 30, fontSize: 13, textAlign: 'center' }}>
-          <div><div>(ลงชื่อ) ..............................</div><div>ผู้ควบคุม</div></div>
-          <div><div>(ลงชื่อ) ..............................</div><div>ผู้รับรอง</div></div>
+          <div><div>(ลงชื่อ) ..............................</div><div>( ........................... )</div></div>
+          <div><div>(ลงชื่อ) ..............................</div><div>( ........................... )</div></div>
         </div>
       </div>
 
@@ -122,8 +126,7 @@ export default function DailyForms({
         <div style={{ fontSize: 13 }}>ประจำเดือน {monthName} {toThaiDigits(year)} จำนวน {toThaiDigits(daily.length)} ราย</div>
         <div style={{ textAlign: 'center', marginTop: 30, fontSize: 14 }}>
           <div>(ลงชื่อ) ...............................................................</div>
-          <div>( {controller?.name ?? '.........................................'} )</div>
-          <div>{controller?.title ?? 'หัวหน้ากลุ่มงาน'}</div>
+          <div>( ......................................... )</div>
         </div>
       </div>
     </div>

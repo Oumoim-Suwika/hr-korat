@@ -43,7 +43,7 @@ const SECTIONS: NavSection[] = [
   { title: '', items: [{ key: 'dashboard', label: 'แดชบอร์ด', icon: LayoutDashboard, roles: ALL }] },
   { title: 'จัดเวร', items: [
     { key: 'schedule', label: 'ตารางเวร', icon: Calendar, roles: ALL },
-    { key: 'daily', label: 'เวรรายวัน', icon: CalendarClock, roles: ALL },
+    { key: 'daily', label: 'ปฏิทินเวร', icon: CalendarClock, roles: ALL },
     { key: 'staffing', label: 'ความต้องการพนักงาน', icon: Users2, roles: SUP },
     { key: 'shifts', label: 'ตั้งค่าเวร', icon: Clock, roles: SUP },
     { key: 'holidays', label: 'วันหยุด', icon: CalendarDays, roles: ALL },

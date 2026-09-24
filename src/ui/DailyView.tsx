@@ -23,7 +23,7 @@ export default function DailyView({ wardName, wardId, year, month }: { wardName:
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-bold text-slate-800">เวรรายวัน · {wardName}</h2>
+          <h2 className="text-lg font-bold text-slate-800">ปฏิทินเวร · {wardName}</h2>
           <p className="text-sm text-slate-500">{THAI_MONTHS[month - 1]} {year}</p>
         </div>
         <div className="flex items-center gap-2">
