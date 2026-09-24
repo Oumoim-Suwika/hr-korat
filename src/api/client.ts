@@ -51,7 +51,7 @@ export interface Employee {
   id: number; prefix?: string; firstName: string; lastName?: string;
   role: string; positionText?: string; employeeType?: string; paymentType: string;
   line?: string; homeWardId?: number; sortOrder: number; baseWage?: number | null; bankAccount?: string | null;
-  employeeCode?: string | null; startDate?: string | null;
+  employeeCode?: string | null; startDate?: string | null; level?: string | null;
 }
 export interface ShiftType {
   code: string; name: string; hours: number; isOt: boolean; isWork: boolean;

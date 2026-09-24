@@ -53,8 +53,6 @@ export default function ScheduleView({ role, wards, wardId, year, month }: Props
   const [shiftHours, setShiftHours] = useState<{ code: string; startTime: string; endTime: string }[]>([]);
   const [requests, setRequests] = useState<RequestItem[]>([]);
   const [schedReport, setSchedReport] = useState<ScheduleResult | null>(null);
-  const [seniorYears, setSeniorYears] = useState(3);
-  const [seniorPerShift, setSeniorPerShift] = useState(1);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const canEdit = role === 'supervisor' || role === 'admin';
@@ -142,12 +140,12 @@ export default function ScheduleView({ role, wards, wardId, year, month }: Props
   // guarantees senior coverage, rests after night, avoids บ→ด, caps consecutive
   // days and balances workload. Existing OT codes and คนนอกหน่วย are preserved.
   const autoDraft = () => {
-    const res = autoSchedule(employees, cells, days, ceYear, month, staffing, { seniorYears, seniorPerShift });
+    const res = autoSchedule(employees, cells, days, ceYear, month, staffing);
     setCells((prev) => ({ ...prev, ...res.cells }));
     setSchedReport(res);
     const msg = res.issues.length
-      ? `จัดเวรอัตโนมัติแล้ว — พบ ${res.issues.length} ช่วงเวรที่กำลังคนไม่ครบ/ขาดหัวหน้าเวร (ดูรายงานด้านล่าง)`
-      : 'จัดเวรอัตโนมัติแล้ว — กำลังคนครบตามความต้องการทุกเวร ✓';
+      ? `จัดเวรอัตโนมัติแล้ว — พบ ${res.issues.length} ช่วงที่กำลังคนไม่ครบตามระดับ (ดูรายงานด้านล่าง)`
+      : 'จัดเวรอัตโนมัติแล้ว — กำลังคนครบทุกเวร/ทุกระดับ ✓';
     showToast('ok', msg);
   };
 
@@ -353,40 +351,29 @@ export default function ScheduleView({ role, wards, wardId, year, month }: Props
         </div>
       )}
 
-      {/* AI scheduling config + coverage report */}
-      {canEdit && (
+      {/* AI scheduling coverage report (fills each level per shift) */}
+      {canEdit && schedReport && (
         <div className="bg-violet-50/60 border border-violet-200 rounded-lg p-3 space-y-2 no-print">
-          <div className="flex flex-wrap items-center gap-3 text-sm">
-            <span className="font-medium text-violet-800 flex items-center gap-1.5"><Wand2 className="w-4 h-4" />ตั้งค่า AI จัดเวร</span>
-            <label className="flex items-center gap-1.5 text-slate-600">อาวุโส ≥
-              <input type="number" min={0} value={seniorYears} onChange={(e) => setSeniorYears(Number(e.target.value))} className="w-14 text-center border border-slate-200 rounded px-2 py-1" /> ปี</label>
-            <label className="flex items-center gap-1.5 text-slate-600">หัวหน้าเวร/เวร
-              <input type="number" min={0} value={seniorPerShift} onChange={(e) => setSeniorPerShift(Number(e.target.value))} className="w-14 text-center border border-slate-200 rounded px-2 py-1" /> คน</label>
-            <span className="text-xs text-slate-400">กำลังคนต่อเวรอ้างอิงจาก “ความต้องการพนักงาน”{schedReport?.usedFallbackNeed ? ' (ยังไม่ได้ตั้งค่า — ใช้ค่าประมาณ)' : ''}</span>
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <span className="font-medium text-violet-800 flex items-center gap-1.5"><Wand2 className="w-4 h-4" />AI จัดเวรตามความต้องการพนักงาน (ระดับ L/M/S/S2)</span>
+            <span className="text-xs text-slate-400">อ้างอิง “ความต้องการพนักงาน”{schedReport.usedFallbackNeed ? ' (ยังไม่ได้ตั้งค่า — ใช้ค่าประมาณ)' : ''}</span>
           </div>
-          {schedReport && (
-            <div className="text-sm">
-              <div className="flex flex-wrap gap-3 text-xs text-slate-600 mb-1">
-                <span>ต้องการต่อวัน — เช้า <b>{schedReport.perShiftNeed.ช}</b> · บ่าย <b>{schedReport.perShiftNeed.บ}</b> · ดึก <b>{schedReport.perShiftNeed.ด}</b></span>
-                {schedReport.workload.length > 0 && <span>· ภาระงาน {schedReport.workload[schedReport.workload.length - 1].workDays}–{schedReport.workload[0].workDays} วัน/คน</span>}
-              </div>
-              {schedReport.issues.length === 0 ? (
-                <div className="text-emerald-700 flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4" />กำลังคนครบตามความต้องการทุกเวร</div>
-              ) : (
-                <div className="text-rose-700">
-                  <div className="font-medium mb-0.5">ช่วงเวรที่ยังไม่ครบ ({schedReport.issues.length}):</div>
-                  <ul className="text-xs space-y-0.5 max-h-32 overflow-auto">
-                    {schedReport.issues.slice(0, 30).map((it, i) => (
-                      <li key={i}>
-                        วันที่ {it.day} เวร{it.shift === 'ช' ? 'เช้า' : it.shift === 'บ' ? 'บ่าย' : 'ดึก'} — ได้ {it.assigned}/{it.needed} คน
-                        {it.seniorAssigned < it.seniorNeeded ? ` · ขาดหัวหน้าเวร (${it.seniorAssigned}/${it.seniorNeeded})` : ''}
-                      </li>
-                    ))}
-                    {schedReport.issues.length > 30 && <li>… และอีก {schedReport.issues.length - 30} รายการ</li>}
-                  </ul>
-                  <div className="text-[11px] text-slate-500 mt-1">เพิ่มบุคลากร/ปรับความต้องการ แล้วกด “จัดเวรอัตโนมัติ (AI)” อีกครั้ง หรือปรับด้วยมือได้เลย</div>
-                </div>
-              )}
+          <div className="flex flex-wrap gap-3 text-xs text-slate-600">
+            <span>ต้องการต่อวัน — เช้า <b>{schedReport.perShiftNeed.ช}</b> · บ่าย <b>{schedReport.perShiftNeed.บ}</b> · ดึก <b>{schedReport.perShiftNeed.ด}</b></span>
+            {schedReport.workload.length > 0 && <span>· ภาระงาน {schedReport.workload[schedReport.workload.length - 1].workDays}–{schedReport.workload[0].workDays} วัน/คน</span>}
+          </div>
+          {schedReport.issues.length === 0 ? (
+            <div className="text-emerald-700 flex items-center gap-1.5 text-sm"><CheckCircle2 className="w-4 h-4" />กำลังคนครบทุกเวร/ทุกระดับ ✓</div>
+          ) : (
+            <div className="text-rose-700 text-sm">
+              <div className="font-medium mb-0.5">ช่วงที่กำลังคนไม่ครบตามระดับ ({schedReport.issues.length}):</div>
+              <ul className="text-xs space-y-0.5 max-h-32 overflow-auto">
+                {schedReport.issues.slice(0, 30).map((it, i) => (
+                  <li key={i}>วันที่ {it.day} เวร{it.shift === 'ช' ? 'เช้า' : it.shift === 'บ' ? 'บ่าย' : 'ดึก'} · ระดับ {it.level === '*' ? 'รวม' : it.level} — ได้ {it.assigned}/{it.needed} คน</li>
+                ))}
+                {schedReport.issues.length > 30 && <li>… และอีก {schedReport.issues.length - 30} รายการ</li>}
+              </ul>
+              <div className="text-[11px] text-slate-500 mt-1">เพิ่มบุคลากรระดับที่ขาด หรือปรับ “ความต้องการพนักงาน” แล้วกด “จัดเวรอัตโนมัติ (AI)” อีกครั้ง</div>
             </div>
           )}
         </div>

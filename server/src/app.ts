@@ -363,6 +363,7 @@ const empInput = z.object({
   paymentType: z.enum(['รายเดือน', 'รายวัน', 'รายคาบ']).default('รายเดือน'),
   line: z.enum(['แพทย์', 'พยาบาล', 'สนับสนุน']).nullable().optional(),
   baseWage: z.number().nullable().optional(), bankAccount: z.string().nullable().optional(),
+  level: z.string().nullable().optional(),          // ระดับ L / M / S / S2
   employeeCode: z.string().nullable().optional(),   // เลขที่คำสั่งจ้าง
   startDate: z.string().nullable().optional(),       // วันที่เริ่มจ้าง (ISO)
   homeWardId: z.number(),

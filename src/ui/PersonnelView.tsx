@@ -27,7 +27,7 @@ export default function PersonnelView({ wardId, wardName, role }: { wardId: numb
   const [toast, setToast] = useState<string | null>(null);
   const [filterWard, setFilterWard] = useState<number | 'all'>('all');
   const [filterRole, setFilterRole] = useState<string>('all');
-  const [ne, setNe] = useState({ prefix: 'นางสาว', firstName: '', lastName: '', role: 'support', positionText: '', employeeType: 'ข้าราชการ', paymentType: 'รายเดือน', employeeCode: '', startDate: '', homeWardId: wardId });
+  const [ne, setNe] = useState({ prefix: 'นางสาว', firstName: '', lastName: '', role: 'support', level: 'S', positionText: '', employeeType: 'ข้าราชการ', paymentType: 'รายเดือน', employeeCode: '', startDate: '', homeWardId: wardId });
   const fileRef = useRef<HTMLInputElement>(null);
   const canEdit = role === 'supervisor' || role === 'admin';
 
@@ -118,6 +118,12 @@ export default function PersonnelView({ wardId, wardName, role }: { wardId: numb
           <select value={ne.role} onChange={(e) => setNe({ ...ne, role: e.target.value })} className="border border-slate-300 rounded px-3 py-2 text-sm">
             {Object.entries(ROLE_TH).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
           </select>
+          <select value={ne.level} onChange={(e) => setNe({ ...ne, level: e.target.value })} className="border border-slate-300 rounded px-3 py-2 text-sm" title="ระดับสำหรับจัดเวร">
+            <option value="L">ระดับ L (หัวหน้าเวร)</option>
+            <option value="M">ระดับ M (ชำนาญการ)</option>
+            <option value="S">ระดับ S (ปฏิบัติการ)</option>
+            <option value="S2">ระดับ S2 (ผู้ช่วย)</option>
+          </select>
           <select value={ne.homeWardId} onChange={(e) => setNe({ ...ne, homeWardId: Number(e.target.value) })} className="border border-slate-300 rounded px-3 py-2 text-sm">
             {wards.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
           </select>
@@ -147,7 +153,7 @@ export default function PersonnelView({ wardId, wardName, role }: { wardId: numb
                   <td className="px-4 py-2 font-medium text-slate-700">{e.prefix}{e.firstName} {e.lastName ?? ''}</td>
                   <td className="px-4 py-2 text-slate-600">{e.positionText ?? ROLE_TH[e.role]}</td>
                   <td className="px-4 py-2 text-slate-500">{wardName2(e.homeWardId)}</td>
-                  <td className="px-4 py-2 text-slate-500">{ROLE_TH[e.role] ?? e.role}</td>
+                  <td className="px-4 py-2 text-slate-500">{ROLE_TH[e.role] ?? e.role}{e.level && <span className="ml-1.5 text-[10px] font-bold bg-[#0F3575]/10 text-[#0F3575] rounded-full px-1.5 py-0.5">{e.level}</span>}</td>
                   <td className="px-4 py-2 text-slate-500">{e.employeeType ?? '—'}</td>
                   <td className="px-4 py-2 text-slate-500">{e.paymentType}</td>
                   <td className="px-4 py-2 text-slate-500">{(e.paymentType === 'รายวัน' || e.paymentType === 'รายคาบ')

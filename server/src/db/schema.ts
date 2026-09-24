@@ -140,6 +140,7 @@ export const employees = pgTable('employees', {
   employeeType: text('employee_type'),     // ข้าราชการ / ลูกจ้างชั่วคราว (รายวัน) ...
   paymentType: paymentTypeEnum('payment_type').default('รายเดือน').notNull(),
   baseWage: doublePrecision('base_wage'),  // per day/period/month
+  level: text('level'),                    // ระดับ L / M / S / S2 (for staffing & AI)
   line: staffLineEnum('line'),             // reimbursement line override
   homeWardId: integer('home_ward_id').references(() => wards.id),
   bankAccount: text('bank_account'),       // for KTB payout (later)

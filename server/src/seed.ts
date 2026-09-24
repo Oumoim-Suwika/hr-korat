@@ -637,6 +637,18 @@ export async function seed() {
     }
   }
 
+  // Backfill employee level (L/M/S/S2) from position/role where not set — links
+  // staff to the staffing matrix so AI can fill each level per shift.
+  const noLevel = await db.select().from(schema.employees).where(isNull(schema.employees.level));
+  for (const e of noLevel) {
+    const p = e.positionText ?? '';
+    let level = 'S';
+    if (/หัวหน้า|ชำนาญการพิเศษ|อาวุโส/.test(p) || e.role === 'doctor') level = 'L';
+    else if (/ชำนาญการ/.test(p)) level = 'M';
+    else if (/ผู้ช่วย|ช่วยเหลือ|พนักงาน/.test(p) || e.role === 'assistant' || e.role === 'room' || e.role === 'support') level = 'S2';
+    await db.update(schema.employees).set({ level }).where(eq(schema.employees.id, e.id));
+  }
+
   // Migrate staffing to L/M/S/S2 levels (jaadwen-style). Any ward whose staffing
   // still uses old level names is replaced with an L/M/S/S2 matrix (idempotent:
   // once a ward has L/M/S/S2 rows it is left as-is, preserving edits).

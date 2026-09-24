@@ -200,6 +200,7 @@ CREATE TABLE IF NOT EXISTS employees (
   sort_order integer NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS employees_home_ward_idx ON employees (home_ward_id);
+ALTER TABLE employees ADD COLUMN IF NOT EXISTS level text;
 
 CREATE TABLE IF NOT EXISTS users (
   id serial PRIMARY KEY,
