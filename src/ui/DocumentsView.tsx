@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { useRosterData, rateFor, cellKey } from '../lib/useRosterData';
 import PrintableRoster from './PrintableRoster';
 import ClaimDocuments, { defaultMemo, lineForWard, type MemoEdits } from './ClaimDocuments';
@@ -34,6 +34,25 @@ export default function DocumentsView({ wardName, wardPhone, wardId, year, month
   const reset = () => { setEdits({}); localStorage.removeItem(storeKey); };
   const ta = 'w-full border border-slate-300 rounded-lg px-3 py-2 text-sm';
 
+  const previewRef = useRef<HTMLDivElement>(null);
+  const tabLabel: Record<Tab, string> = { request: 'ขอขึ้น', ot: 'ขอเบิกOT', bd: 'ขอเบิกบ่ายดึก', daily: 'รายวัน' };
+
+  // Export the current packet as an editable Word (.doc) file — attachable.
+  const downloadDoc = () => {
+    const inner = (previewRef.current?.innerHTML ?? '')
+      .replaceAll('/garuda.png', 'https://hr-mnrh.app.sati.co.th/garuda.png');
+    const full = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><title>บันทึกข้อความ</title><style>
+      body{font-family:'TH Sarabun New','TH SarabunPSK','Sarabun','Noto Sans Thai',sans-serif;font-size:16pt;color:#000;}
+      table{border-collapse:collapse;width:100%;} td,th{border:1px solid #000;padding:2px 4px;}
+      @page{size:A4;margin:1.5cm;}
+    </style></head><body>${inner}</body></html>`;
+    const blob = new Blob(['\ufeff', full], { type: 'application/msword;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `บันทึกข้อความ_${tabLabel[tab]}_${wardName}_${month}-${year}.doc`; a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const schedule = <PrintableRoster wardName={wardName} month={month} year={year} ceYear={ceYear} days={days} employees={employees} cells={cells} signers={signers} note={roster?.note ?? null} />;
 
   const renderPacket = (forPrint: boolean) => {
@@ -52,6 +71,7 @@ export default function DocumentsView({ wardName, wardPhone, wardId, year, month
         </div>
         <div className="flex gap-2">
           {tab === 'ot' && <button onClick={() => setShowEdit((s) => !s)} className="flex items-center gap-1.5 text-sm text-slate-700 border border-slate-300 px-3 py-2 rounded-lg"><Pencil className="w-4 h-4" />แก้เนื้อความ</button>}
+          <button onClick={downloadDoc} className="flex items-center gap-1.5 text-sm text-blue-700 border border-blue-300 bg-blue-50 px-3 py-2 rounded-lg hover:bg-blue-100"><FileText className="w-4 h-4" />ดาวน์โหลด Word (.doc)</button>
           <button onClick={() => window.print()} className="flex items-center gap-1.5 text-sm text-white bg-[#0F3575] px-3 py-2 rounded-lg hover:bg-[#0c2a5e]"><Printer className="w-4 h-4" />พิมพ์ทั้งชุด (PDF)</button>
         </div>
       </div>
@@ -77,7 +97,7 @@ export default function DocumentsView({ wardName, wardPhone, wardId, year, month
 
       {loading ? <div className="grid place-items-center py-12 text-slate-400"><Loader2 className="w-6 h-6 animate-spin" /></div> : (
         <>
-          <div className="no-print bg-slate-100 rounded-xl p-4 overflow-auto">{renderPacket(false)}</div>
+          <div ref={previewRef} className="no-print bg-slate-100 rounded-xl p-4 overflow-auto">{renderPacket(false)}</div>
           <div className="print-sheet gov-form">{renderPacket(true)}</div>
         </>
       )}
