@@ -1,6 +1,7 @@
 import React from 'react';
 import type { Employee, RosterSigner } from '../api/client';
 import { THAI_MONTHS, THAI_DAYS_SHORT } from '../data';
+import { toThaiDigits } from '../lib/thai';
 
 interface CellMap { [k: string]: { normalCode?: string | null; otCode?: string | null }; }
 const key = (empId: number, day: number) => `${empId}-${day}`;
@@ -26,7 +27,7 @@ export default function PrintableRoster({
       <div style={{ textAlign: 'center', marginBottom: 4 }}>
         <img src="/garuda.png" alt="ตราครุฑ" style={{ height: 46, margin: '0 auto 2px' }} />
         <div style={{ fontWeight: 700, fontSize: 15 }}>
-          ตารางปฏิบัติงาน ประจำเดือน {THAI_MONTHS[month - 1]} {year}
+          ตารางปฏิบัติงาน ประจำเดือน {THAI_MONTHS[month - 1]} {toThaiDigits(year)}
         </div>
         <div style={{ fontSize: 13 }}>{wardName} โรงพยาบาลมหาราชนครราชสีมา</div>
       </div>
@@ -41,7 +42,7 @@ export default function PrintableRoster({
               const wd = new Date(ceYear, month - 1, d).getDay();
               return (
                 <th key={d} style={{ width: 15, textAlign: 'center', background: wd === 0 || wd === 6 ? '#eee' : undefined }}>
-                  <div>{d}</div><div style={{ fontSize: 8 }}>{THAI_DAYS_SHORT[wd]}</div>
+                  <div>{toThaiDigits(d)}</div><div style={{ fontSize: 8 }}>{THAI_DAYS_SHORT[wd]}</div>
                 </th>
               );
             })}

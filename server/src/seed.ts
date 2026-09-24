@@ -140,6 +140,103 @@ export async function seed() {
     }
   }
 
+  // ---- richer mock data across wards (idempotent) --------------------------
+  const SY2 = 2569, SM2 = 7, ceY2 = SY2 - 543;
+  const rot = ['ช', 'บ', 'ด', 'ออฟ', 'ช', 'บ', 'ออฟ']; // weekly rotation
+  const otMap: Record<number, string> = { 4: 'BD', 6: 'ชot', 11: 'BD', 13: 'ชot', 18: 'BD', 20: 'ชot', 25: 'BD' };
+
+  const wardStaff: Record<string, { prefix: string; first: string; last: string; role: any; pos: string; line: any }[]> = {
+    ICU: [
+      { prefix: 'นาง', first: 'สมหญิง', last: 'ดูแลดี', role: 'nurse', pos: 'พยาบาลวิชาชีพชำนาญการ (หัวหน้าเวร)', line: 'พยาบาล' },
+      { prefix: 'นางสาว', first: 'มาลี', last: 'ใจงาม', role: 'nurse', pos: 'พยาบาลวิชาชีพ', line: 'พยาบาล' },
+      { prefix: 'นางสาว', first: 'จันทรา', last: 'พริ้งเพรา', role: 'nurse', pos: 'พยาบาลวิชาชีพ', line: 'พยาบาล' },
+      { prefix: 'นางสาว', first: 'อัญชลี', last: 'สดใส', role: 'nurse', pos: 'พยาบาลวิชาชีพ', line: 'พยาบาล' },
+      { prefix: 'นาย', first: 'รักงาน', last: 'ขยันยิ่ง', role: 'assistant', pos: 'ผู้ช่วยพยาบาล', line: 'พยาบาล' },
+      { prefix: 'นางสาว', first: 'รัตนา', last: 'สุขใจ', role: 'assistant', pos: 'ผู้ช่วยพยาบาล', line: 'พยาบาล' },
+    ],
+    ER: [
+      { prefix: 'นพ.', first: 'สมชาย', last: 'กู้ชีพ', role: 'doctor', pos: 'แพทย์เวชศาสตร์ฉุกเฉิน', line: 'แพทย์' },
+      { prefix: 'นาง', first: 'ปิยะดา', last: 'ทองดี', role: 'nurse', pos: 'พยาบาลวิชาชีพชำนาญการ', line: 'พยาบาล' },
+      { prefix: 'นางสาว', first: 'กานดา', last: 'มีสุข', role: 'nurse', pos: 'พยาบาลวิชาชีพ', line: 'พยาบาล' },
+      { prefix: 'นางสาว', first: 'สุพรรณ', last: 'ดีมาก', role: 'assistant', pos: 'พนักงานช่วยเหลือคนไข้', line: 'พยาบาล' },
+    ],
+    A01: [
+      { prefix: 'พญ.', first: 'สิรินทร์', last: 'แก้วดี', role: 'doctor', pos: 'วิสัญญีแพทย์', line: 'แพทย์' },
+      { prefix: 'นพ.', first: 'วิชัย', last: 'สิริประเสริฐ', role: 'doctor', pos: 'วิสัญญีแพทย์', line: 'แพทย์' },
+      { prefix: 'นางสาว', first: 'อรุณี', last: 'แจ่มใส', role: 'nurse', pos: 'พยาบาลวิสัญญี', line: 'พยาบาล' },
+    ],
+    M01: [
+      { prefix: 'นาง', first: 'วราภรณ์', last: 'เมตตา', role: 'nurse', pos: 'พยาบาลวิชาชีพชำนาญการ', line: 'พยาบาล' },
+      { prefix: 'นางสาว', first: 'ธิดา', last: 'อ่อนหวาน', role: 'nurse', pos: 'พยาบาลวิชาชีพ', line: 'พยาบาล' },
+      { prefix: 'นางสาว', first: 'กมล', last: 'ศรีสุข', role: 'assistant', pos: 'ผู้ช่วยพยาบาล', line: 'พยาบาล' },
+    ],
+  };
+
+  for (const [code, staff] of Object.entries(wardStaff)) {
+    const wid = wardByCode[code];
+    if (!wid) continue;
+    const existing = await db.select({ n: sql<number>`count(*)` }).from(schema.employees).where(eq(schema.employees.homeWardId, wid));
+    if (Number(existing[0].n) > 0) continue; // already seeded
+
+    const inserted = await db.insert(schema.employees).values(staff.map((s, i) => ({
+      prefix: s.prefix, firstName: s.first, lastName: s.last, role: s.role, positionText: s.pos,
+      employeeType: s.role === 'doctor' ? 'ข้าราชการ' : 'พนักงานราชการ', paymentType: 'รายเดือน' as const,
+      line: s.line, homeWardId: wid, sortOrder: i + 1,
+    }))).returning({ id: schema.employees.id });
+
+    // roster with rotation + OT
+    const rosterRows = await db.insert(schema.rosters)
+      .values({ wardId: wid, year: SY2, month: SM2, status: 'approved', note: 'ปฏิบัติงานตามตารางเวรที่ได้รับอนุมัติ', approvedAt: new Date() })
+      .onConflictDoNothing({ target: [schema.rosters.wardId, schema.rosters.year, schema.rosters.month] }).returning();
+    const rid = rosterRows[0]?.id;
+    if (rid) {
+      const daysInMonth = new Date(ceY2, SM2, 0).getDate();
+      const cells: any[] = [];
+      inserted.forEach((emp: { id: number }, idx: number) => {
+        for (let d = 1; d <= daysInMonth; d++) {
+          const normalCode = rot[(d + idx) % rot.length];
+          const otCode = (idx % 2 === 0 && otMap[d]) ? otMap[d] : null;
+          cells.push({ rosterId: rid, employeeId: emp.id, day: d, normalCode, otCode });
+        }
+      });
+      await db.insert(schema.rosterCells).values(cells);
+      await db.insert(schema.rosterSigners).values([
+        { rosterId: rid, ordinal: 1, name: 'หัวหน้าหอผู้ป่วย', title: `หัวหน้า ${code}`, signerRole: 'controller' },
+        { rosterId: rid, ordinal: 2, name: 'นางนฤมล  ศรีสรรพ์', title: 'รองผู้อำนวยการฝ่ายการพยาบาล', signerRole: 'approver' },
+      ]);
+      await db.insert(schema.workingCalendars)
+        .values({ wardId: wid, year: SY2, month: SM2, workingDays: 22, locked: true, lockedAt: new Date() })
+        .onConflictDoNothing({ target: [schema.workingCalendars.wardId, schema.workingCalendars.year, schema.workingCalendars.month] });
+    }
+
+    // staffing requirement sample
+    const stExisting = await db.select({ n: sql<number>`count(*)` }).from(schema.staffingRequirements).where(eq(schema.staffingRequirements.wardId, wid));
+    if (Number(stExisting[0].n) === 0) {
+      await db.insert(schema.staffingRequirements).values([
+        { wardId: wid, level: 'พยาบาลวิชาชีพ (RN)', shiftCode: 'ช', count: 2 },
+        { wardId: wid, level: 'พยาบาลวิชาชีพ (RN)', shiftCode: 'บ', count: 2 },
+        { wardId: wid, level: 'พยาบาลวิชาชีพ (RN)', shiftCode: 'ด', count: 1 },
+        { wardId: wid, level: 'ผู้ช่วยพยาบาล (PN)', shiftCode: 'ช', count: 1 },
+        { wardId: wid, level: 'ผู้ช่วยพยาบาล (PN)', shiftCode: 'บ', count: 1 },
+      ]);
+    }
+  }
+
+  // holidays 2569 (a few key ones) — idempotent
+  const hExisting = await db.select({ n: sql<number>`count(*)` }).from(schema.holidays).where(eq(schema.holidays.year, SY2));
+  if (Number(hExisting[0].n) === 0) {
+    await db.insert(schema.holidays).values([
+      { year: SY2, date: '07-28', name: 'วันเฉลิมพระชนมพรรษา ร.10' },
+      { year: SY2, date: '07-29', name: 'วันอาสาฬหบูชา' },
+      { year: SY2, date: '07-30', name: 'วันเข้าพรรษา' },
+      { year: SY2, date: '08-12', name: 'วันแม่แห่งชาติ' },
+      { year: SY2, date: '10-13', name: 'วันคล้ายวันสวรรคต ร.9' },
+      { year: SY2, date: '10-23', name: 'วันปิยมหาราช' },
+      { year: SY2, date: '12-05', name: 'วันพ่อแห่งชาติ' },
+      { year: SY2, date: '12-10', name: 'วันรัฐธรรมนูญ' },
+    ]);
+  }
+
   console.log('Seed complete. Wards:', wardRows.length, '| Positions:', posRows.length);
 }
 

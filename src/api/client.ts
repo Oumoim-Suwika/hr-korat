@@ -50,7 +50,7 @@ export interface Ward { id: number; code: string; name: string; building?: strin
 export interface Employee {
   id: number; prefix?: string; firstName: string; lastName?: string;
   role: string; positionText?: string; employeeType?: string; paymentType: string;
-  line?: string; homeWardId?: number; sortOrder: number;
+  line?: string; homeWardId?: number; sortOrder: number; baseWage?: number | null; bankAccount?: string | null;
 }
 export interface ShiftType {
   code: string; name: string; hours: number; isOt: boolean; isWork: boolean;
@@ -101,6 +101,8 @@ export const api = {
     request<{ roster: Roster; savedCells: number }>('POST', '/api/rosters', payload),
   submitRoster: (id: number) => request<{ roster: Roster }>('POST', `/api/rosters/${id}/submit`),
   approveRoster: (id: number) => request<{ roster: Roster }>('POST', `/api/rosters/${id}/approve`),
+  listRosters: (wardId?: number) => request<{ rosters: any[] }>('GET', `/api/rosters/list${wardId ? `?wardId=${wardId}` : ''}`).then((r) => r.rosters),
+  financeLock: (id: number, locked: boolean) => request<{ roster: Roster }>('POST', `/api/rosters/${id}/finance-lock`, { locked }).then((r) => r.roster),
 
   getRequests: (wardId: number, year: number, month: number) =>
     request<{ requests: RequestItem[] }>('GET', `/api/requests?wardId=${wardId}&year=${year}&month=${month}`).then((r) => r.requests),

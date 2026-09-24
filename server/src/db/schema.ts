@@ -135,6 +135,7 @@ export const rosters = pgTable('rosters', {
   createdBy: integer('created_by').references(() => users.id),
   approvedBy: integer('approved_by').references(() => users.id),
   approvedAt: timestamp('approved_at'),
+  financeLocked: boolean('finance_locked').default(false).notNull(),  // finance closes the month (after day 5)
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (t) => ({ uniq: uniqueIndex('roster_ward_ym_idx').on(t.wardId, t.year, t.month) }));
 

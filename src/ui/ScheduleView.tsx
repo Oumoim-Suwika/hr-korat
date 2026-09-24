@@ -1,11 +1,11 @@
-import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import {
   api, type Ward, type Employee, type ShiftType, type WorkingCalendar,
   type RosterCell, type Roster, type RosterSigner, ApiError,
 } from '../api/client';
-import { SHIFT_TYPES as SHIFT_META, THAI_MONTHS, THAI_DAYS_SHORT } from '../data';
+import { SHIFT_TYPES as SHIFT_META, THAI_MONTHS, THAI_DAYS_SHORT, normalizeShiftCode } from '../data';
 import type { UserRole } from '../api/client';
-import { Lock, LockOpen, Save, Send, CheckCircle2, Eraser, Loader2, Users, Printer } from 'lucide-react';
+import { Lock, LockOpen, Save, Send, CheckCircle2, Eraser, Loader2, Users, Printer, Wand2, Upload } from 'lucide-react';
 import PrintableRoster from './PrintableRoster';
 
 const META = Object.fromEntries(SHIFT_META.map((s) => [s.code, s]));
@@ -41,6 +41,7 @@ export default function ScheduleView({ role, wards, wardId, year, month }: Props
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
   const [workingDaysInput, setWorkingDaysInput] = useState(0);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const canEdit = role === 'supervisor' || role === 'admin';
   const canLock = role === 'supervisor' || role === 'finance' || role === 'admin';
@@ -94,6 +95,60 @@ export default function ScheduleView({ role, wards, wardId, year, month }: Props
       else cur.normalCode = cur.normalCode === brush ? null : brush;
       return { ...prev, [k]: cur };
     });
+  };
+
+  // Rule-based auto-draft: rotate ช/บ/ด/ออฟ per person; rest after night;
+  // avoid บ→ด and ด→ช back-to-back (keeps existing OT codes).
+  const autoDraft = () => {
+    const pattern = ['ช', 'บ', 'ด', 'ออฟ'];
+    const next: CellMap = {};
+    employees.forEach((emp, i) => {
+      let prev: string | null = null;
+      for (const d of days) {
+        let code = pattern[(d + i) % pattern.length];
+        if (prev === 'ด') code = 'ออฟ';                 // rest after night
+        else if (prev === 'บ' && code === 'ด') code = 'ช'; // no afternoon→night
+        const k = key(emp.id, d);
+        next[k] = { normalCode: code, otCode: cells[k]?.otCode ?? null };
+        prev = code;
+      }
+    });
+    setCells(next);
+    showToast('ok', 'ร่างตารางเวรอัตโนมัติตามกฎแล้ว — ปรับแก้ได้ก่อนบันทึก');
+  };
+
+  // Import a roster CSV: first column = ชื่อ, then a column per day (รหัสเวร).
+  const importCsv = async (file: File) => {
+    try {
+      const text = await file.text();
+      const lines = text.split(/\r?\n/).filter((l) => l.trim());
+      const next: CellMap = { ...cells };
+      let matched = 0;
+      for (const line of lines) {
+        const parts = line.split(',').map((s) => s.trim());
+        const name = parts[0];
+        if (!name) continue;
+        const emp = employees.find((e) => {
+          const full = `${e.firstName}${e.lastName ?? ''}`;
+          return full.includes(name) || name.includes(e.firstName);
+        });
+        if (!emp) continue;
+        matched++;
+        for (let d = 1; d <= days.length; d++) {
+          const raw = parts[d];
+          if (!raw) continue;
+          const code = normalizeShiftCode(raw);
+          if (!code) continue;
+          const isOt = OT_BRUSH.includes(code) || (META as any)[code]?.isOt;
+          const k = key(emp.id, d);
+          const cur = { ...(next[k] ?? {}) };
+          if (isOt) cur.otCode = code; else cur.normalCode = code === 'O' ? 'ออฟ' : code;
+          next[k] = cur;
+        }
+      }
+      setCells(next);
+      showToast(matched ? 'ok' : 'err', matched ? `นำเข้าตารางเวรจาก CSV แล้ว (${matched} คน)` : 'ไม่พบชื่อที่ตรงกับบุคลากร');
+    } catch { showToast('err', 'อ่านไฟล์ไม่สำเร็จ'); }
   };
 
   const buildCells = (): RosterCell[] => {
@@ -196,6 +251,9 @@ export default function ScheduleView({ role, wards, wardId, year, month }: Props
               : <button onClick={() => lockCalendar(true)} className="flex items-center gap-1 text-xs text-white bg-[#0F3575] px-2 py-1 rounded"><LockOpen className="w-3.5 h-3.5" />ล็อก</button>
             )}
           </div>
+          {canEdit && <button onClick={autoDraft} className="flex items-center gap-1.5 text-sm text-violet-700 bg-violet-50 border border-violet-200 px-3 py-2 rounded-lg hover:bg-violet-100"><Wand2 className="w-4 h-4" />ร่างอัตโนมัติ</button>}
+          {canEdit && <button onClick={() => fileRef.current?.click()} className="flex items-center gap-1.5 text-sm text-slate-700 bg-white border border-slate-300 px-3 py-2 rounded-lg hover:bg-slate-50"><Upload className="w-4 h-4" />นำเข้า CSV</button>}
+          {canEdit && <input ref={fileRef} type="file" accept=".csv" className="hidden" onChange={(e) => e.target.files?.[0] && importCsv(e.target.files[0])} />}
           {canEdit && <button onClick={save} disabled={saving} className="flex items-center gap-1.5 text-sm text-white bg-[#0F3575] px-3 py-2 rounded-lg hover:bg-[#0c2a5e] disabled:opacity-60">{saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}บันทึก</button>}
           {canEdit && roster && roster.status === 'draft' && <button onClick={submit} className="flex items-center gap-1.5 text-sm text-amber-700 bg-amber-50 border border-amber-200 px-3 py-2 rounded-lg"><Send className="w-4 h-4" />ส่งอนุมัติ</button>}
           {canApprove && roster && roster.status === 'pending_approval' && <button onClick={approve} className="flex items-center gap-1.5 text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-2 rounded-lg"><CheckCircle2 className="w-4 h-4" />อนุมัติ</button>}

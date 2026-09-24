@@ -257,6 +257,27 @@ app.post('/api/requests/:id/decide', requireAuth, requireRole('supervisor', 'fin
   return c.json({ request: rows[0] });
 });
 
+// ---- roster list (form history) --------------------------------------------
+app.get('/api/rosters/list', requireAuth, async (c) => {
+  const wardId = c.req.query('wardId');
+  const base = db.select().from(schema.rosters).orderBy(desc(schema.rosters.year), desc(schema.rosters.month));
+  const rows = wardId
+    ? await db.select().from(schema.rosters).where(eq(schema.rosters.wardId, Number(wardId))).orderBy(desc(schema.rosters.year), desc(schema.rosters.month))
+    : await base;
+  return c.json({ rosters: rows });
+});
+
+// finance closes/reopens the month (timeline: units edit until day 5, then finance locks)
+app.post('/api/rosters/:id/finance-lock', requireAuth, requireRole('finance', 'admin'), async (c) => {
+  const id = Number(c.req.param('id'));
+  const body = await c.req.json().catch(() => ({}));
+  const locked = body?.locked !== false;
+  const rows = await db.update(schema.rosters).set({ financeLocked: locked, updatedAt: new Date() }).where(eq(schema.rosters.id, id)).returning();
+  if (!rows[0]) return c.json({ error: 'not_found' }, 404);
+  await audit(getUser(c).id, 'roster', String(id), locked ? 'finance_lock' : 'finance_unlock');
+  return c.json({ roster: rows[0] });
+});
+
 // ---- audit logs -------------------------------------------------------------
 app.get('/api/audit-logs', requireAuth, requireRole('finance', 'admin'), async (c) => {
   const rows = await db.select().from(schema.auditLogs).orderBy(desc(schema.auditLogs.ts)).limit(200);

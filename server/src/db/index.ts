@@ -194,6 +194,7 @@ CREATE TABLE IF NOT EXISTS rosters (
   updated_at timestamp NOT NULL DEFAULT now()
 );
 CREATE UNIQUE INDEX IF NOT EXISTS roster_ward_ym_idx ON rosters (ward_id, year, month);
+ALTER TABLE rosters ADD COLUMN IF NOT EXISTS finance_locked boolean NOT NULL DEFAULT false;
 
 CREATE TABLE IF NOT EXISTS roster_cells (
   id serial PRIMARY KEY,

@@ -1,12 +1,26 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useRosterData, computeClaim, downloadFile } from '../lib/useRosterData';
 import { THAI_MONTHS } from '../data';
-import { Loader2, DollarSign, Download, Landmark } from 'lucide-react';
+import { api } from '../api/client';
+import { Loader2, DollarSign, Download, Landmark, Lock, LockOpen, CheckCircle2 } from 'lucide-react';
 
 const OT_COLS = ['ชot', 'บot', 'ดot', 'BD', 'OR'];
+const TIMELINE = [
+  { d: 'ก่อน 25', t: 'หน่วยจัดทำบันทึกขอขึ้น + ตารางเวร' },
+  { d: 'ก่อน 27', t: 'เสนอ ผอ./รองฯ อนุมัติ' },
+  { d: 'วันที่ 1', t: 'การเงินเริ่มประมวลผล' },
+  { d: 'ถึงวันที่ 5', t: 'หน่วยแก้ไข/บันทึกได้ แล้วการเงินปิดรอบ' },
+];
 
 export default function FinanceView({ wardName, wardId, year, month }: { wardName: string; wardId: number; year: number; month: number }) {
-  const { employees, cells, days, loading, roster } = useRosterData(wardId, year, month);
+  const { employees, cells, days, loading, roster, reload } = useRosterData(wardId, year, month);
+  const [busy, setBusy] = useState(false);
+  const financeLocked = !!(roster as any)?.financeLocked;
+  const toggleLock = async () => {
+    if (!roster) return;
+    setBusy(true);
+    try { await api.financeLock(roster.id, !financeLocked); reload(); } finally { setBusy(false); }
+  };
 
   const claims = useMemo(
     () => employees.map((e) => computeClaim(e, cells, days)).filter((c) => c.otCount > 0),
@@ -56,8 +70,20 @@ export default function FinanceView({ wardName, wardId, year, month }: { wardNam
         <div className="flex gap-2">
           <button onClick={exportSummary} disabled={!claims.length} className="flex items-center gap-1.5 text-sm text-slate-700 bg-white border border-slate-300 px-3 py-2 rounded-lg hover:bg-slate-50 disabled:opacity-50"><Download className="w-4 h-4" />สรุป (CSV)</button>
           <button onClick={exportKTB} disabled={!claims.length} className="flex items-center gap-1.5 text-sm text-white bg-[#0F3575] px-3 py-2 rounded-lg hover:bg-[#0c2a5e] disabled:opacity-50"><Landmark className="w-4 h-4" />ไฟล์จ่าย KTB</button>
+          {roster && <button onClick={toggleLock} disabled={busy} className={`flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg border ${financeLocked ? 'text-amber-700 bg-amber-50 border-amber-200' : 'text-slate-700 border-slate-300'}`}>{financeLocked ? <Lock className="w-4 h-4" /> : <LockOpen className="w-4 h-4" />}{financeLocked ? 'ปิดรอบแล้ว' : 'ปิดรอบเบิก'}</button>}
         </div>
       </div>
+
+      {/* finance processing timeline */}
+      <div className="bg-white border border-slate-200 rounded-xl p-3 flex flex-wrap gap-2">
+        {TIMELINE.map((s, i) => (
+          <div key={i} className="flex items-center gap-2 flex-1 min-w-[150px]">
+            <div className="w-7 h-7 rounded-full bg-[#0F3575]/10 text-[#0F3575] grid place-items-center text-xs font-bold shrink-0"><CheckCircle2 className="w-4 h-4" /></div>
+            <div><div className="text-xs font-semibold text-slate-700">{s.d}</div><div className="text-[11px] text-slate-400 leading-tight">{s.t}</div></div>
+          </div>
+        ))}
+      </div>
+      {financeLocked && <div className="text-sm bg-amber-50 text-amber-700 rounded-lg px-3 py-2">การเงินปิดรอบเบิกเดือนนี้แล้ว — หน่วยงานไม่สามารถแก้ไขได้</div>}
 
       {/* summary cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
