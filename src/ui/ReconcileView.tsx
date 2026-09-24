@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useAllWardsData, computeClaim, cellKey } from '../lib/useRosterData';
+import { auditRequestVsClaim } from '../lib/claimAudit';
 import { api, type RequestItem, type WorkingCalendar } from '../api/client';
 import { THAI_MONTHS } from '../data';
-import { Loader2, ShieldCheck, AlertTriangle, CheckCircle2, Lock } from 'lucide-react';
+import { Loader2, ShieldCheck, AlertTriangle, CheckCircle2, Lock, ShieldAlert } from 'lucide-react';
 
 /**
  * ตรวจสอบ ตารางเวร ↔ ตารางเบิก (หลักฐานการจ่าย) — จอกระทบยอดสำหรับการเงิน
@@ -59,6 +60,7 @@ export default function ReconcileView({ wardId, year, month }: { wardId: number;
     return { e, claim, otCount: claim.otCount, amount: claim.amount, flags };
   }).filter((r) => r.otCount > 0 || r.flags.length), [scoped, cells, days, requests, cals]);
 
+  const claimIssues = useMemo(() => auditRequestVsClaim(scoped, cells, days, requests), [scoped, cells, days, requests]);
   const totalAmount = rows.reduce((s, r) => s + r.amount, 0);
   const totalOt = rows.reduce((s, r) => s + r.otCount, 0);
   const flagged = rows.filter((r) => r.flags.length).length;
@@ -113,6 +115,23 @@ export default function ReconcileView({ wardId, year, month }: { wardId: number;
           </table>
         </div>
       )}
+      {/* AI check: ขอขึ้น ↔ ขอเบิก mismatch (for finance) */}
+      <div>
+        <h3 className="text-sm font-semibold text-slate-700 flex items-center gap-2 mb-2"><ShieldAlert className="w-4 h-4 text-amber-500" />AI ตรวจสอบ: “ขอขึ้น” ตรงกับ “ขอเบิก” หรือไม่</h3>
+        {claimIssues.length === 0 ? (
+          <div className="bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-3 text-sm text-emerald-700 flex items-center gap-2"><CheckCircle2 className="w-4 h-4" />ทุกรายการที่ขอขึ้นตรงกับที่ลงเวร/ขอเบิก</div>
+        ) : (
+          <div className="bg-white border border-amber-200 rounded-lg divide-y divide-amber-100">
+            {claimIssues.map((it, i) => (
+              <div key={i} className="flex items-start gap-3 px-4 py-2.5">
+                <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                <div className="text-sm"><b className="text-slate-700">{it.name}</b> <span className="text-amber-800">— {it.detail}</span></div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       <p className="text-[11px] text-slate-400 flex items-center gap-1"><Lock className="w-3 h-3" />ยอด "ตารางเบิก" คำนวณจากเวร OT ในตารางเวรโดยตรง — ธงเตือนช่วยให้การเงินตรวจก่อนอนุมัติจ่าย (วันลาชนเวร, ปฏิทินยังไม่ล็อก, คำขอค้าง)</p>
     </div>
   );

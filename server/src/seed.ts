@@ -62,6 +62,22 @@ export async function seed() {
     await db.insert(schema.shiftTypes).values(s).onConflictDoNothing({ target: schema.shiftTypes.code });
   }
 
+  // Demo mismatch for the AI "ขอขึ้น↔เบิก" checker: an approved OT request asks
+  // for บot on ICU day 6, but the roster has ชot that day → checker flags it.
+  {
+    const icu = wardByCode['ICU'];
+    if (icu) {
+      const icuEmps = await db.select().from(schema.employees).where(eq(schema.employees.homeWardId, icu)).limit(1);
+      if (icuEmps.length) {
+        const exists = await db.select({ n: sql<number>`count(*)` }).from(schema.requests)
+          .where(and(eq(schema.requests.wardId, icu), eq(schema.requests.employeeId, icuEmps[0].id), eq(schema.requests.type, 'ot'), eq(schema.requests.day, 6)));
+        if (Number(exists[0].n) === 0) {
+          await db.insert(schema.requests).values({ type: 'ot', employeeId: icuEmps[0].id, wardId: icu, year: 2569, month: 7, day: 6, toCode: 'บot', reason: 'ขอขึ้นเวรบ่าย OT (เดโมตรวจสอบ ขอขึ้น↔เบิก)', status: 'approved' });
+        }
+      }
+    }
+  }
+
   // shift-type levels (informational, matches jaadwen "ระดับที่ใช้"); rate stays 0
   // (= use per-position rate) until finance sets a flat per-shift rate.
   const LEVELS_BY_CODE: Record<string, string> = {

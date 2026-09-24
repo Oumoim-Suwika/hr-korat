@@ -5,10 +5,12 @@ import {
 } from '../api/client';
 import { SHIFT_TYPES as SHIFT_META, THAI_MONTHS, THAI_DAYS_SHORT, normalizeShiftCode } from '../data';
 import type { UserRole } from '../api/client';
-import { Lock, LockOpen, Save, Send, CheckCircle2, Eraser, Loader2, Users, Printer, Wand2, Upload, UserPlus } from 'lucide-react';
+import { Lock, LockOpen, Save, Send, CheckCircle2, Eraser, Loader2, Users, Printer, Wand2, Upload, UserPlus, ShieldAlert, AlertTriangle } from 'lucide-react';
 import PrintableRoster from './PrintableRoster';
 import { autoSchedule, type ScheduleResult, type StaffingItem } from '../lib/autoSchedule';
 import { effectiveWardHours } from '../lib/useRosterData';
+import { auditRequestVsClaim } from '../lib/claimAudit';
+import type { RequestItem } from '../api/client';
 
 const META = Object.fromEntries(SHIFT_META.map((s) => [s.code, s]));
 const NORMAL_BRUSH = ['ช', 'บ', 'ด', 'ออฟ'];
@@ -49,6 +51,7 @@ export default function ScheduleView({ role, wards, wardId, year, month }: Props
   const [workingDaysInput, setWorkingDaysInput] = useState(0);
   const [staffing, setStaffing] = useState<StaffingItem[]>([]);
   const [shiftHours, setShiftHours] = useState<{ code: string; startTime: string; endTime: string }[]>([]);
+  const [requests, setRequests] = useState<RequestItem[]>([]);
   const [schedReport, setSchedReport] = useState<ScheduleResult | null>(null);
   const [seniorYears, setSeniorYears] = useState(3);
   const [seniorPerShift, setSeniorPerShift] = useState(1);
@@ -71,7 +74,7 @@ export default function ScheduleView({ role, wards, wardId, year, month }: Props
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [emps, sts, cal, ros, all, stf, wht] = await Promise.all([
+      const [emps, sts, cal, ros, all, stf, wht, reqs] = await Promise.all([
         api.employees(wardId),
         api.shiftTypes(),
         api.getWorkingCalendar(wardId, year, month),
@@ -79,6 +82,7 @@ export default function ScheduleView({ role, wards, wardId, year, month }: Props
         api.allEmployees(),
         api.getStaffing(wardId),
         api.getWardShiftTimes(wardId),
+        api.getRequests(wardId, year, month),
       ]);
       setEmployees(emps);
       setShiftTypes(sts);
@@ -86,6 +90,7 @@ export default function ScheduleView({ role, wards, wardId, year, month }: Props
       setAllEmployees(all);
       setStaffing(stf as StaffingItem[]);
       setShiftHours(wht);
+      setRequests(reqs);
       setSchedReport(null);
       setWorkingDaysInput(cal?.workingDays ?? 0);
       setRoster(ros.roster);
@@ -254,6 +259,7 @@ export default function ScheduleView({ role, wards, wardId, year, month }: Props
 
   const wardName = wards.find((w) => w.id === wardId)?.name ?? '';
   const effHours = effectiveWardHours(shiftHours, shiftTypes as any);
+  const claimIssues = useMemo(() => auditRequestVsClaim(rows, cells, days, requests), [rows, cells, days, requests]);
 
   return (
     <div className="space-y-4">
@@ -322,6 +328,22 @@ export default function ScheduleView({ role, wards, wardId, year, month }: Props
       )}
 
       {toast && <div className={`text-sm rounded-lg px-3 py-2 ${toast.kind === 'ok' ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>{toast.msg}</div>}
+
+      {/* AI check: ขอขึ้น ↔ ลงเวร/เบิก mismatch (alerts the scheduler) */}
+      {claimIssues.length > 0 && (
+        <div className="bg-amber-50 border border-amber-300 rounded-xl p-3.5 no-print">
+          <div className="flex items-center gap-2 font-semibold text-amber-800 mb-2"><ShieldAlert className="w-5 h-5" />AI ตรวจพบ: “ขอขึ้น” ไม่ตรงกับที่ลงเวร/เบิก ({claimIssues.length} รายการ)</div>
+          <ul className="space-y-1.5 max-h-44 overflow-auto">
+            {claimIssues.map((it, i) => (
+              <li key={i} className="flex items-start gap-2 text-sm text-amber-900 bg-white/60 rounded-lg px-2.5 py-1.5">
+                <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-amber-500" />
+                <span><b>{it.name}</b> — {it.detail}</span>
+              </li>
+            ))}
+          </ul>
+          <div className="text-[11px] text-amber-700 mt-2">แก้เวรในตารางให้ตรงกับที่ขออนุมัติไว้ ก่อนส่งอนุมัติ/ส่งเบิก · การเงินจะเห็นการแจ้งเตือนเดียวกันในหน้า “ตรวจสอบเวร↔เบิก”</div>
+        </div>
+      )}
 
       {/* AI scheduling config + coverage report */}
       {canEdit && (
