@@ -250,19 +250,42 @@ export async function seed() {
     }
   }
 
-  // ---- sample requests (so คำขอ tabs have data) — idempotent ---------------
-  const reqCount = await db.select({ n: sql<number>`count(*)` }).from(schema.requests);
-  if (Number(reqCount[0].n) === 0) {
-    const icu = wardByCode['ICU'];
-    const icuEmps = icu ? await db.select().from(schema.employees).where(eq(schema.employees.homeWardId, icu)).limit(4) : [];
-    if (icu && icuEmps.length >= 3) {
-      await db.insert(schema.requests).values([
-        { type: 'shift_change', employeeId: icuEmps[0].id, wardId: icu, year: 2569, month: 7, day: 12, fromCode: 'ด', toCode: 'บ', reason: 'ติดธุระครอบครัว ขอสลับกับเวรบ่าย', status: 'pending' },
-        { type: 'leave', employeeId: icuEmps[1].id, wardId: icu, year: 2569, month: 7, day: 15, toDay: 16, reason: 'ลากิจ 2 วัน', status: 'approved' },
-        { type: 'ot', employeeId: icuEmps[2].id, wardId: icu, year: 2569, month: 7, day: 22, toCode: 'BD', reason: 'ช่วยเวรบ่ายดึกช่วงผู้ป่วยล้น', status: 'pending' },
-        { type: 'leave', employeeId: icuEmps[0].id, wardId: icu, year: 2569, month: 7, day: 28, reason: 'ลาป่วย', status: 'rejected' },
-      ]);
-    }
+  // ---- sample requests per ward (all roles: หมอ/พยาบาล/สนับสนุน) — idempotent
+  const reqPlan: Record<string, { type: any; day: number; toDay?: number; fromCode?: string; toCode?: string; reason: string; status: any }[]> = {
+    ICU: [
+      { type: 'shift_change', day: 12, fromCode: 'ด', toCode: 'บ', reason: 'ติดธุระครอบครัว ขอสลับกับเวรบ่าย', status: 'pending' },
+      { type: 'leave', day: 15, toDay: 16, reason: 'ลากิจ 2 วัน', status: 'approved' },
+      { type: 'ot', day: 22, toCode: 'BD', reason: 'ช่วยเวรบ่ายดึกช่วงผู้ป่วยล้น', status: 'pending' },
+      { type: 'leave', day: 28, reason: 'ลาป่วย', status: 'rejected' },
+    ],
+    A01: [ // แพทย์วิสัญญี
+      { type: 'ot', day: 6, toCode: 'ชot', reason: 'ผ่าตัดฉุกเฉินวันหยุด', status: 'approved' },
+      { type: 'shift_change', day: 18, fromCode: 'บ', toCode: 'ช', reason: 'แลกเวรกับเพื่อนร่วมทีม', status: 'pending' },
+    ],
+    ER: [ // แพทย์ฉุกเฉิน
+      { type: 'ot', day: 10, toCode: 'ดot', reason: 'อยู่เวรดึกเสริมช่วงเทศกาล', status: 'pending' },
+      { type: 'leave', day: 20, reason: 'ลาพักผ่อนประจำปี', status: 'approved' },
+    ],
+    M01: [
+      { type: 'ot', day: 13, toCode: 'ชot', reason: 'ดูแลผู้ป่วยในวันหยุด', status: 'pending' },
+      { type: 'leave', day: 25, reason: 'ลากิจ', status: 'pending' },
+    ],
+    U01: [ // สายสนับสนุน (การเงิน)
+      { type: 'ot', day: 3, toCode: 'BD', reason: 'ประจำจุดเก็บเงินนอกเวลา', status: 'approved' },
+      { type: 'ot', day: 17, toCode: 'BD', reason: 'ปิดงบสิ้นเดือน', status: 'pending' },
+    ],
+  };
+  for (const [code, plan] of Object.entries(reqPlan)) {
+    const wid = wardByCode[code];
+    if (!wid) continue;
+    const existing = await db.select({ n: sql<number>`count(*)` }).from(schema.requests).where(eq(schema.requests.wardId, wid));
+    if (Number(existing[0].n) > 0) continue;
+    const emps = await db.select().from(schema.employees).where(eq(schema.employees.homeWardId, wid)).limit(4);
+    if (emps.length === 0) continue;
+    await db.insert(schema.requests).values(plan.map((p, i) => ({
+      type: p.type, employeeId: emps[i % emps.length].id, wardId: wid, year: 2569, month: 7,
+      day: p.day, toDay: p.toDay ?? null, fromCode: p.fromCode ?? null, toCode: p.toCode ?? null, reason: p.reason, status: p.status,
+    })));
   }
 
   console.log('Seed complete. Wards:', wardRows.length, '| Positions:', posRows.length);
