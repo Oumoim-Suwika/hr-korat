@@ -5,12 +5,15 @@
  * Test logins (all password: Sati@1234):
  *   admin@sati.local      -> admin
  *   finance@sati.local    -> finance
- *   head.u01@sati.local   -> supervisor (ward U01)
+ *   head.u01@sati.local   -> supervisor (ward U01 การเงิน)
+ *   head.icu / head.er / head.a01 / head.m01 / head.or / head.gs @sati.local
+ *                         -> supervisor (per ward)
  *   staff.u01@sati.local  -> staff      (ward U01)
+ *   staff.icu@sati.local  -> staff      (ward ICU)
  */
 import { db, schema, runMigrations } from './db/index.js';
 import { hashPassword } from './auth.js';
-import { eq, and, sql } from 'drizzle-orm';
+import { eq, and, sql, isNull } from 'drizzle-orm';
 
 const PASSWORD = 'Sati@1234';
 
@@ -385,6 +388,163 @@ export async function seed() {
       { actorUserId: fId, entity: 'request', entityId: null, action: 'decide', detail: { decision: 'approved', type: 'ot' } },
     ]);
   }
+
+  // ==========================================================================
+  // DEMO ENRICHMENT — multi-month data, per-ward logins, seniority, full
+  // staffing, external staff, and full request status/type coverage.
+  // All idempotent (guarded), so safe to re-run on every cold start.
+  // ==========================================================================
+
+  // (E) Per-ward supervisor logins + an extra nursing-staff login (all pw Sati@1234).
+  const wardHeads = [
+    { email: 'head.icu@sati.local', name: 'หัวหน้าหอผู้ป่วยวิกฤต (ICU)', code: 'ICU' },
+    { email: 'head.er@sati.local', name: 'หัวหน้าแผนกฉุกเฉิน (ER)', code: 'ER' },
+    { email: 'head.a01@sati.local', name: 'หัวหน้ากลุ่มงานวิสัญญี (A01)', code: 'A01' },
+    { email: 'head.m01@sati.local', name: 'หัวหน้ากลุ่มงานอายุรกรรม (M01)', code: 'M01' },
+    { email: 'head.or@sati.local', name: 'หัวหน้าห้องผ่าตัด (OR)', code: 'OR' },
+    { email: 'head.gs@sati.local', name: 'หัวหน้างานบริการกลาง (GS)', code: 'GS' },
+  ];
+  for (const h of wardHeads) {
+    const wid = wardByCode[h.code];
+    if (!wid) continue;
+    const firstEmp = await db.select().from(schema.employees).where(eq(schema.employees.homeWardId, wid)).limit(1);
+    await db.insert(schema.users).values({
+      email: h.email, displayName: h.name, role: 'supervisor', wardId: wid,
+      employeeId: firstEmp[0]?.id ?? null, passwordHash: hash,
+    }).onConflictDoNothing({ target: schema.users.email });
+  }
+  {
+    const icu = wardByCode['ICU'];
+    if (icu) {
+      const icuEmps = await db.select().from(schema.employees).where(eq(schema.employees.homeWardId, icu)).limit(3);
+      const staffEmp = icuEmps[icuEmps.length - 1];
+      if (staffEmp) await db.insert(schema.users).values({
+        email: 'staff.icu@sati.local', displayName: 'พยาบาลประจำ ICU', role: 'staff', wardId: icu,
+        employeeId: staffEmp.id, passwordHash: hash,
+      }).onConflictDoNothing({ target: schema.users.email });
+    }
+  }
+
+  // (F) Seniority + employee code backfill — drives AI senior detection & อายุงาน.
+  const noStart = await db.select().from(schema.employees).where(isNull(schema.employees.startDate));
+  for (const e of noStart) {
+    const senior = /ชำนาญการ|หัวหน้า|อาวุโส/.test(e.positionText ?? '');
+    const yearsAgo = senior ? 9 : 1 + (e.id % 6);
+    const d = new Date(); d.setFullYear(d.getFullYear() - yearsAgo);
+    await db.update(schema.employees)
+      .set({ startDate: d.toISOString().slice(0, 10), employeeCode: e.employeeCode ?? `EMP-${String(e.id).padStart(4, '0')}` })
+      .where(eq(schema.employees.id, e.id));
+  }
+
+  // (G) Full 4-level staffing matrix for clinical wards.
+  const LEVELS_FULL = [
+    { level: 'หัวหน้าเวร', ch: 1, ba: 1, du: 1 },
+    { level: 'พยาบาลวิชาชีพ (RN)', ch: 2, ba: 2, du: 1 },
+    { level: 'ผู้ช่วยพยาบาล (PN)', ch: 1, ba: 1, du: 1 },
+    { level: 'พนักงานช่วยเหลือ (NA)', ch: 1, ba: 1, du: 0 },
+  ];
+  for (const code of ['ICU', 'ER', 'A01', 'M01', 'OR']) {
+    const wid = wardByCode[code];
+    if (!wid) continue;
+    const existing = await db.select().from(schema.staffingRequirements).where(eq(schema.staffingRequirements.wardId, wid));
+    const combo = new Set(existing.map((s: any) => `${s.level}|${s.shiftCode}`));
+    const toAdd: any[] = [];
+    for (const lv of LEVELS_FULL) {
+      for (const [sc, cnt] of [['ช', lv.ch], ['บ', lv.ba], ['ด', lv.du]] as [string, number][]) {
+        if (!combo.has(`${lv.level}|${sc}`)) toAdd.push({ wardId: wid, level: lv.level, shiftCode: sc, count: cnt });
+      }
+    }
+    if (toAdd.length) await db.insert(schema.staffingRequirements).values(toAdd);
+  }
+
+  // (H) Multi-month rosters: June = closed (approved + finance-locked),
+  //     August = pipeline (pending_approval, calendar locked) — except GS which
+  //     stays draft + unlocked to demonstrate the "lock before OT" rule.
+  const rotDemo = ['ช', 'บ', 'ด', 'ออฟ', 'ช', 'บ', 'ออฟ'];
+  const otMapDemo: Record<number, string> = { 4: 'BD', 6: 'ชot', 11: 'BD', 13: 'ชot', 18: 'BD', 20: 'ชot', 25: 'BD' };
+  const genMonth = async (wid: number, y: number, m: number, status: 'draft' | 'pending_approval' | 'approved', financeLocked: boolean, calLocked: boolean) => {
+    const exists = await db.select().from(schema.rosters).where(and(eq(schema.rosters.wardId, wid), eq(schema.rosters.year, y), eq(schema.rosters.month, m)));
+    if (exists.length) return;
+    const emps = await db.select().from(schema.employees).where(eq(schema.employees.homeWardId, wid));
+    if (emps.length === 0) return;
+    const rows = await db.insert(schema.rosters).values({
+      wardId: wid, year: y, month: m, status, financeLocked,
+      note: 'ปฏิบัติงานตามตารางเวรที่ได้รับอนุมัติ', approvedAt: status === 'approved' ? new Date() : null,
+    }).onConflictDoNothing({ target: [schema.rosters.wardId, schema.rosters.year, schema.rosters.month] }).returning();
+    const rid = rows[0]?.id;
+    if (!rid) return;
+    const ce = y - 543;
+    const dim = new Date(ce, m, 0).getDate();
+    const cells: any[] = [];
+    emps.forEach((e: any, idx: number) => {
+      for (let d = 1; d <= dim; d++) {
+        const normalCode = rotDemo[(d + idx) % rotDemo.length];
+        const otCode = (idx % 2 === 0 && calLocked && otMapDemo[d]) ? otMapDemo[d] : null;
+        cells.push({ rosterId: rid, employeeId: e.id, day: d, normalCode, otCode });
+      }
+    });
+    await db.insert(schema.rosterCells).values(cells);
+    await db.insert(schema.rosterSigners).values([
+      { rosterId: rid, ordinal: 1, name: 'หัวหน้าหน่วยงาน', title: 'หัวหน้าผู้ควบคุม', signerRole: 'controller' },
+      { rosterId: rid, ordinal: 2, name: 'นางนฤมล  ศรีสรรพ์', title: 'รองผู้อำนวยการฝ่ายการพยาบาล', signerRole: 'approver' },
+    ]);
+    await db.insert(schema.workingCalendars)
+      .values({ wardId: wid, year: y, month: m, workingDays: 21, locked: calLocked, lockedAt: calLocked ? new Date() : null })
+      .onConflictDoNothing({ target: [schema.workingCalendars.wardId, schema.workingCalendars.year, schema.workingCalendars.month] });
+  };
+  for (const code of ['U01', 'A01', 'M01', 'ICU', 'ER', 'OR', 'GS']) {
+    const wid = wardByCode[code];
+    if (!wid) continue;
+    await genMonth(wid, 2569, 6, 'approved', true, true);
+    if (code === 'GS') await genMonth(wid, 2569, 8, 'draft', false, false);
+    else await genMonth(wid, 2569, 8, 'pending_approval', false, true);
+  }
+
+  // (I) External staff (คนนอกหน่วย) — an M01 nurse helps ICU on OT days (OT-only).
+  const icuId = wardByCode['ICU'], m01Id = wardByCode['M01'];
+  if (icuId && m01Id) {
+    const icuRoster = await db.select().from(schema.rosters).where(and(eq(schema.rosters.wardId, icuId), eq(schema.rosters.year, 2569), eq(schema.rosters.month, 7)));
+    if (icuRoster.length) {
+      const rid = icuRoster[0].id;
+      const hasExt = await db.select({ n: sql<number>`count(*)` }).from(schema.rosterCells).where(and(eq(schema.rosterCells.rosterId, rid), eq(schema.rosterCells.external, true)));
+      if (Number(hasExt[0].n) === 0) {
+        const m01Nurse = await db.select().from(schema.employees).where(and(eq(schema.employees.homeWardId, m01Id), eq(schema.employees.role, 'nurse'))).limit(1);
+        if (m01Nurse.length) {
+          await db.insert(schema.rosterCells).values(
+            [6, 13, 20].map((d) => ({ rosterId: rid, employeeId: m01Nurse[0].id, day: d, normalCode: null, otCode: 'ชot', external: true }))
+          );
+        }
+      }
+    }
+  }
+
+  // (J) Full request status + type coverage (adds shift_add + cancelled + August).
+  {
+    const icu = wardByCode['ICU'];
+    if (icu) {
+      const icuEmps = await db.select().from(schema.employees).where(eq(schema.employees.homeWardId, icu)).limit(4);
+      const hasShiftAdd = await db.select({ n: sql<number>`count(*)` }).from(schema.requests).where(and(eq(schema.requests.wardId, icu), eq(schema.requests.type, 'shift_add')));
+      if (Number(hasShiftAdd[0].n) === 0 && icuEmps.length) {
+        await db.insert(schema.requests).values([
+          { type: 'shift_add', employeeId: icuEmps[0].id, wardId: icu, year: 2569, month: 7, day: 9, toCode: 'ช', reason: 'ขอขึ้นเวรเพิ่มช่วงผู้ป่วยหนาแน่น', status: 'approved' },
+          { type: 'leave', employeeId: icuEmps[1 % icuEmps.length].id, wardId: icu, year: 2569, month: 7, day: 5, reason: 'ยกเลิกคำขอลา (เปลี่ยนแผน)', status: 'cancelled' },
+          { type: 'ot', employeeId: icuEmps[2 % icuEmps.length].id, wardId: icu, year: 2569, month: 8, day: 2, toCode: 'BD', reason: 'เวรบ่ายดึกเดือนถัดไป', status: 'pending' },
+          { type: 'shift_change', employeeId: icuEmps[0].id, wardId: icu, year: 2569, month: 8, day: 7, fromCode: 'ด', toCode: 'บ', reason: 'สลับเวรเดือนถัดไป', status: 'pending' },
+        ]);
+      }
+    }
+  }
+
+  // (K) De-duplicate rows that lack a DB unique constraint. Concurrent Lambda
+  //     cold-starts can both pass a count guard and double-insert; this keeps
+  //     the lowest id per natural key and is safe to run repeatedly.
+  await db.execute(sql`DELETE FROM staffing_requirements a USING staffing_requirements b
+    WHERE a.id > b.id AND a.ward_id = b.ward_id AND a.level = b.level AND a.shift_code = b.shift_code`);
+  await db.execute(sql`DELETE FROM roster_signers a USING roster_signers b
+    WHERE a.id > b.id AND a.roster_id = b.roster_id AND a.ordinal = b.ordinal`);
+  await db.execute(sql`DELETE FROM requests a USING requests b
+    WHERE a.id > b.id AND a.ward_id = b.ward_id AND a.type = b.type AND a.employee_id = b.employee_id
+      AND COALESCE(a.day,-1) = COALESCE(b.day,-1) AND COALESCE(a.reason,'') = COALESCE(b.reason,'')`);
 
   console.log('Seed complete. Wards:', wardRows.length, '| Positions:', posRows.length);
 }
