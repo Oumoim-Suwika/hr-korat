@@ -8,6 +8,7 @@ import type { UserRole } from '../api/client';
 import { Lock, LockOpen, Save, Send, CheckCircle2, Eraser, Loader2, Users, Printer, Wand2, Upload, UserPlus } from 'lucide-react';
 import PrintableRoster from './PrintableRoster';
 import { autoSchedule, type ScheduleResult, type StaffingItem } from '../lib/autoSchedule';
+import { effectiveWardHours } from '../lib/useRosterData';
 
 const META = Object.fromEntries(SHIFT_META.map((s) => [s.code, s]));
 const NORMAL_BRUSH = ['ช', 'บ', 'ด', 'ออฟ'];
@@ -252,6 +253,7 @@ export default function ScheduleView({ role, wards, wardId, year, month }: Props
   };
 
   const wardName = wards.find((w) => w.id === wardId)?.name ?? '';
+  const effHours = effectiveWardHours(shiftHours, shiftTypes as any);
 
   return (
     <div className="space-y-4">
@@ -311,11 +313,11 @@ export default function ScheduleView({ role, wards, wardId, year, month }: Props
       )}
       {externalIds.length > 0 && <p className="text-xs text-amber-600 no-print">* แถวสีเหลือง = คนนอกหน่วย (ลงได้เฉพาะ OT ไม่นับวันทำการ)</p>}
 
-      {shiftHours.length > 0 && (
+      {effHours.length > 0 && (
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 no-print">
           <span className="font-medium text-slate-600">เวลาปฏิบัติงานของหน่วยนี้:</span>
-          {['ช', 'บ', 'ด'].map((cd) => { const h = shiftHours.find((x) => x.code === cd); return <span key={cd} className="text-slate-600"><b className="text-[#0F3575]">{cd}</b> {h ? `${h.startTime}-${h.endTime} น.` : '—'}</span>; })}
-          <span className="text-slate-400 ml-auto">ตั้งค่าได้ที่เมนู “เวลาปฏิบัติงาน (ต่อหน่วย)”</span>
+          {effHours.map((h) => <span key={h.code} className="text-slate-600"><b className="text-[#0F3575]">{h.code}</b> {h.startTime}-{h.endTime} น.</span>)}
+          <span className="text-slate-400 ml-auto">{shiftHours.length ? 'ตั้งค่าได้ที่เมนู “เวลาปฏิบัติงาน (ต่อหน่วย)”' : 'ใช้ค่ากลางจาก “ตั้งค่าเวร” (หน่วยนี้ยังไม่ได้ตั้งเวลาเฉพาะ)'}</span>
         </div>
       )}
 
@@ -476,7 +478,7 @@ export default function ScheduleView({ role, wards, wardId, year, month }: Props
         <PrintableRoster
           wardName={wardName} month={month} year={year} ceYear={ceYear} days={days}
           employees={rows} cells={cells} signers={signers} note={noteText || null}
-          cleared={roster?.status === 'approved'} hours={shiftHours}
+          cleared={roster?.status === 'approved'} hours={effHours}
         />
       </div>
     </div>

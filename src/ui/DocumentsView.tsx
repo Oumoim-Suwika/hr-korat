@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
-import { useRosterData, rateFor, cellKey } from '../lib/useRosterData';
+import { useRosterData, rateFor, cellKey, effectiveWardHours } from '../lib/useRosterData';
 import { api } from '../api/client';
 import PrintableRoster from './PrintableRoster';
 import ClaimDocuments, { defaultMemo, lineForWard, type MemoEdits } from './ClaimDocuments';
@@ -49,7 +49,12 @@ export default function DocumentsView({ wardName, wardPhone, wardId, year, month
   const ta = 'w-full border border-slate-300 rounded-lg px-3 py-2 text-sm';
 
   const [shiftHours, setShiftHours] = useState<{ code: string; startTime: string; endTime: string }[]>([]);
-  useEffect(() => { api.getWardShiftTimes(wardId).then(setShiftHours).catch(() => setShiftHours([])); }, [wardId]);
+  const [shiftTypes, setShiftTypes] = useState<any[]>([]);
+  useEffect(() => {
+    api.getWardShiftTimes(wardId).then(setShiftHours).catch(() => setShiftHours([]));
+    api.shiftTypes().then(setShiftTypes).catch(() => setShiftTypes([]));
+  }, [wardId]);
+  const effHours = effectiveWardHours(shiftHours, shiftTypes);
 
   const previewRef = useRef<HTMLDivElement>(null);
   const tabLabel: Record<Tab, string> = { request: 'ขอขึ้น', ot: 'ขอเบิกOT', bd: 'ขอเบิกบ่ายดึก', daily: 'รายวัน' };
@@ -72,7 +77,7 @@ export default function DocumentsView({ wardName, wardPhone, wardId, year, month
     URL.revokeObjectURL(url);
   };
 
-  const schedule = <div className="print-page-break"><PrintableRoster wardName={wardName} month={month} year={year} ceYear={ceYear} days={days} employees={employees} cells={cells} signers={signers} note={roster?.note ?? null} hours={shiftHours} /></div>;
+  const schedule = <div className="print-page-break"><PrintableRoster wardName={wardName} month={month} year={year} ceYear={ceYear} days={days} employees={employees} cells={cells} signers={signers} note={roster?.note ?? null} hours={effHours} /></div>;
 
   const renderPacket = (forPrint: boolean) => {
     if (tab === 'request') return <><div style={forPrint ? { pageBreakAfter: 'always' } : undefined}><RequestToWork wardName={wardName} wardPhone={wardPhone} month={month} year={year} employees={employees} signers={signers} /></div>{forPrint && schedule}</>;

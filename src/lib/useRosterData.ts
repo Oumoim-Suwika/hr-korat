@@ -129,6 +129,28 @@ export function useRosterData(wardId: number, year: number, month: number) {
   return { employees, cells, signers, roster, loading, ceYear, days, reload: load };
 }
 
+/** Format a numeric hour (8.3 = 08:30) as "08.30". */
+export function fmtHour(h?: number | null): string {
+  if (h == null || isNaN(h)) return '';
+  return `${String(Math.floor(h)).padStart(2, '0')}.${String(Math.round((h % 1) * 100)).padStart(2, '0')}`;
+}
+
+/**
+ * Effective ช/บ/ด display times for a ward: use the ward's own configured times
+ * when present, otherwise fall back to the global shift-type times (ตั้งค่าเวร).
+ */
+export function effectiveWardHours(
+  wardTimes: { code: string; startTime: string; endTime: string }[] | undefined,
+  shiftTypes: { code: string; startHour?: number | null; endHour?: number | null }[] | undefined,
+): { code: string; startTime: string; endTime: string }[] {
+  return ['ช', 'บ', 'ด'].map((code) => {
+    const w = wardTimes?.find((x) => x.code === code);
+    if (w) return { code, startTime: w.startTime, endTime: w.endTime };
+    const g = shiftTypes?.find((s) => s.code === code);
+    return { code, startTime: fmtHour(g?.startHour), endTime: fmtHour(g?.endHour) };
+  }).filter((x) => x.startTime && x.endTime);
+}
+
 /** Trigger a browser download of a text/CSV file (UTF-8 with BOM for Excel/Thai). */
 export function downloadFile(filename: string, content: string, mime = 'text/csv;charset=utf-8') {
   const blob = new Blob(['\uFEFF' + content], { type: mime });
