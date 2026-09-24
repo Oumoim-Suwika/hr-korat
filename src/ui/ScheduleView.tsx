@@ -7,6 +7,7 @@ import { SHIFT_TYPES as SHIFT_META, THAI_MONTHS, THAI_DAYS_SHORT, normalizeShift
 import type { UserRole } from '../api/client';
 import { Lock, LockOpen, Save, Send, CheckCircle2, Eraser, Loader2, Users, Printer, Wand2, Upload, UserPlus } from 'lucide-react';
 import PrintableRoster from './PrintableRoster';
+import { autoSchedule, type ScheduleResult, type StaffingItem } from '../lib/autoSchedule';
 
 const META = Object.fromEntries(SHIFT_META.map((s) => [s.code, s]));
 const NORMAL_BRUSH = ['ช', 'บ', 'ด', 'ออฟ'];
@@ -45,6 +46,10 @@ export default function ScheduleView({ role, wards, wardId, year, month }: Props
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
   const [workingDaysInput, setWorkingDaysInput] = useState(0);
+  const [staffing, setStaffing] = useState<StaffingItem[]>([]);
+  const [schedReport, setSchedReport] = useState<ScheduleResult | null>(null);
+  const [seniorYears, setSeniorYears] = useState(3);
+  const [seniorPerShift, setSeniorPerShift] = useState(1);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const canEdit = role === 'supervisor' || role === 'admin';
@@ -64,17 +69,20 @@ export default function ScheduleView({ role, wards, wardId, year, month }: Props
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [emps, sts, cal, ros, all] = await Promise.all([
+      const [emps, sts, cal, ros, all, stf] = await Promise.all([
         api.employees(wardId),
         api.shiftTypes(),
         api.getWorkingCalendar(wardId, year, month),
         api.getRoster(wardId, year, month),
         api.allEmployees(),
+        api.getStaffing(wardId),
       ]);
       setEmployees(emps);
       setShiftTypes(sts);
       setCalendar(cal);
       setAllEmployees(all);
+      setStaffing(stf as StaffingItem[]);
+      setSchedReport(null);
       setWorkingDaysInput(cal?.workingDays ?? 0);
       setRoster(ros.roster);
       setSigners(ros.signers ?? []);
@@ -114,24 +122,17 @@ export default function ScheduleView({ role, wards, wardId, year, month }: Props
     });
   };
 
-  // Rule-based auto-draft: rotate ช/บ/ด/ออฟ per person; rest after night;
-  // avoid บ→ด and ด→ช back-to-back (keeps existing OT codes).
+  // AI auto-scheduler: meets per-shift headcount from "ความต้องการพนักงาน",
+  // guarantees senior coverage, rests after night, avoids บ→ด, caps consecutive
+  // days and balances workload. Existing OT codes and คนนอกหน่วย are preserved.
   const autoDraft = () => {
-    const pattern = ['ช', 'บ', 'ด', 'ออฟ'];
-    const next: CellMap = {};
-    employees.forEach((emp, i) => {
-      let prev: string | null = null;
-      for (const d of days) {
-        let code = pattern[(d + i) % pattern.length];
-        if (prev === 'ด') code = 'ออฟ';                 // rest after night
-        else if (prev === 'บ' && code === 'ด') code = 'ช'; // no afternoon→night
-        const k = key(emp.id, d);
-        next[k] = { normalCode: code, otCode: cells[k]?.otCode ?? null };
-        prev = code;
-      }
-    });
-    setCells(next);
-    showToast('ok', 'ร่างตารางเวรอัตโนมัติตามกฎแล้ว — ปรับแก้ได้ก่อนบันทึก');
+    const res = autoSchedule(employees, cells, days, ceYear, month, staffing, { seniorYears, seniorPerShift });
+    setCells((prev) => ({ ...prev, ...res.cells }));
+    setSchedReport(res);
+    const msg = res.issues.length
+      ? `จัดเวรอัตโนมัติแล้ว — พบ ${res.issues.length} ช่วงเวรที่กำลังคนไม่ครบ/ขาดหัวหน้าเวร (ดูรายงานด้านล่าง)`
+      : 'จัดเวรอัตโนมัติแล้ว — กำลังคนครบตามความต้องการทุกเวร ✓';
+    showToast('ok', msg);
   };
 
   // Import a roster CSV: first column = ชื่อ, then a column per day (รหัสเวร).
@@ -269,7 +270,7 @@ export default function ScheduleView({ role, wards, wardId, year, month }: Props
               : <button onClick={() => lockCalendar(true)} className="flex items-center gap-1 text-xs text-white bg-[#0F3575] px-2 py-1 rounded"><LockOpen className="w-3.5 h-3.5" />ล็อก</button>
             )}
           </div>
-          {canEdit && <button onClick={autoDraft} className="flex items-center gap-1.5 text-sm text-violet-700 bg-violet-50 border border-violet-200 px-3 py-2 rounded-lg hover:bg-violet-100"><Wand2 className="w-4 h-4" />ร่างอัตโนมัติ</button>}
+          {canEdit && <button onClick={autoDraft} className="flex items-center gap-1.5 text-sm text-violet-700 bg-violet-50 border border-violet-200 px-3 py-2 rounded-lg hover:bg-violet-100"><Wand2 className="w-4 h-4" />จัดเวรอัตโนมัติ (AI)</button>}
           {canEdit && <button onClick={() => fileRef.current?.click()} className="flex items-center gap-1.5 text-sm text-slate-700 bg-white border border-slate-300 px-3 py-2 rounded-lg hover:bg-slate-50"><Upload className="w-4 h-4" />นำเข้า CSV</button>}
           {canEdit && <input ref={fileRef} type="file" accept=".csv" className="hidden" onChange={(e) => e.target.files?.[0] && importCsv(e.target.files[0])} />}
           {canEdit && <button onClick={save} disabled={saving} className="flex items-center gap-1.5 text-sm text-white bg-[#0F3575] px-3 py-2 rounded-lg hover:bg-[#0c2a5e] disabled:opacity-60">{saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}บันทึก</button>}
@@ -308,6 +309,45 @@ export default function ScheduleView({ role, wards, wardId, year, month }: Props
       {externalIds.length > 0 && <p className="text-xs text-amber-600 no-print">* แถวสีเหลือง = คนนอกหน่วย (ลงได้เฉพาะ OT ไม่นับวันทำการ)</p>}
 
       {toast && <div className={`text-sm rounded-lg px-3 py-2 ${toast.kind === 'ok' ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>{toast.msg}</div>}
+
+      {/* AI scheduling config + coverage report */}
+      {canEdit && (
+        <div className="bg-violet-50/60 border border-violet-200 rounded-lg p-3 space-y-2 no-print">
+          <div className="flex flex-wrap items-center gap-3 text-sm">
+            <span className="font-medium text-violet-800 flex items-center gap-1.5"><Wand2 className="w-4 h-4" />ตั้งค่า AI จัดเวร</span>
+            <label className="flex items-center gap-1.5 text-slate-600">อาวุโส ≥
+              <input type="number" min={0} value={seniorYears} onChange={(e) => setSeniorYears(Number(e.target.value))} className="w-14 text-center border border-slate-200 rounded px-2 py-1" /> ปี</label>
+            <label className="flex items-center gap-1.5 text-slate-600">หัวหน้าเวร/เวร
+              <input type="number" min={0} value={seniorPerShift} onChange={(e) => setSeniorPerShift(Number(e.target.value))} className="w-14 text-center border border-slate-200 rounded px-2 py-1" /> คน</label>
+            <span className="text-xs text-slate-400">กำลังคนต่อเวรอ้างอิงจาก “ความต้องการพนักงาน”{schedReport?.usedFallbackNeed ? ' (ยังไม่ได้ตั้งค่า — ใช้ค่าประมาณ)' : ''}</span>
+          </div>
+          {schedReport && (
+            <div className="text-sm">
+              <div className="flex flex-wrap gap-3 text-xs text-slate-600 mb-1">
+                <span>ต้องการต่อวัน — เช้า <b>{schedReport.perShiftNeed.ช}</b> · บ่าย <b>{schedReport.perShiftNeed.บ}</b> · ดึก <b>{schedReport.perShiftNeed.ด}</b></span>
+                {schedReport.workload.length > 0 && <span>· ภาระงาน {schedReport.workload[schedReport.workload.length - 1].workDays}–{schedReport.workload[0].workDays} วัน/คน</span>}
+              </div>
+              {schedReport.issues.length === 0 ? (
+                <div className="text-emerald-700 flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4" />กำลังคนครบตามความต้องการทุกเวร</div>
+              ) : (
+                <div className="text-rose-700">
+                  <div className="font-medium mb-0.5">ช่วงเวรที่ยังไม่ครบ ({schedReport.issues.length}):</div>
+                  <ul className="text-xs space-y-0.5 max-h-32 overflow-auto">
+                    {schedReport.issues.slice(0, 30).map((it, i) => (
+                      <li key={i}>
+                        วันที่ {it.day} เวร{it.shift === 'ช' ? 'เช้า' : it.shift === 'บ' ? 'บ่าย' : 'ดึก'} — ได้ {it.assigned}/{it.needed} คน
+                        {it.seniorAssigned < it.seniorNeeded ? ` · ขาดหัวหน้าเวร (${it.seniorAssigned}/${it.seniorNeeded})` : ''}
+                      </li>
+                    ))}
+                    {schedReport.issues.length > 30 && <li>… และอีก {schedReport.issues.length - 30} รายการ</li>}
+                  </ul>
+                  <div className="text-[11px] text-slate-500 mt-1">เพิ่มบุคลากร/ปรับความต้องการ แล้วกด “จัดเวรอัตโนมัติ (AI)” อีกครั้ง หรือปรับด้วยมือได้เลย</div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* grid */}
       {loading ? (

@@ -6,7 +6,7 @@ import { THAI_MONTHS } from '../data';
 import {
   LayoutDashboard, Calendar, CalendarClock, Users, Building2, Users2, Clock, CalendarDays,
   ArrowLeftRight, CalendarX, Send, DollarSign, FileText, BarChart3, ScrollText, ShieldCheck,
-  Settings as SettingsIcon, LogOut, Loader2, Menu, History, Wallet,
+  Settings as SettingsIcon, LogOut, Loader2, Menu, History, Wallet, Scale, CalendarRange,
 } from 'lucide-react';
 
 import DashboardView from './DashboardView';
@@ -27,10 +27,13 @@ import FormHistoryView from './FormHistoryView';
 import AuditView from './AuditView';
 import UsersView from './UsersView';
 import SettingsView from './SettingsView';
+import ComplianceView from './ComplianceView';
+import AnnualPlanView from './AnnualPlanView';
 
 type TabKey =
   | 'dashboard' | 'schedule' | 'daily' | 'personnel' | 'wards' | 'staffing' | 'shifts'
-  | 'holidays' | 'swap' | 'leave' | 'ot' | 'finance' | 'reconcile' | 'payroll' | 'documents' | 'history' | 'reports' | 'audit' | 'users' | 'settings';
+  | 'holidays' | 'swap' | 'leave' | 'ot' | 'finance' | 'reconcile' | 'payroll' | 'documents' | 'history' | 'reports'
+  | 'compliance' | 'annual' | 'audit' | 'users' | 'settings';
 
 const ALL: UserRole[] = ['staff', 'supervisor', 'finance', 'admin'];
 const SUP: UserRole[] = ['supervisor', 'admin'];
@@ -45,6 +48,7 @@ const SECTIONS: NavSection[] = [
     { key: 'schedule', label: 'ตารางเวร', icon: Calendar, roles: ALL },
     { key: 'daily', label: 'ปฏิทินเวร', icon: CalendarClock, roles: ALL },
     { key: 'staffing', label: 'ความต้องการพนักงาน', icon: Users2, roles: SUP },
+    { key: 'compliance', label: 'ตรวจกฎหมายแรงงาน', icon: Scale, roles: [...SUP, 'finance'] },
     { key: 'shifts', label: 'ตั้งค่าเวร', icon: Clock, roles: SUP },
     { key: 'holidays', label: 'วันหยุด', icon: CalendarDays, roles: ALL },
   ]},
@@ -63,6 +67,7 @@ const SECTIONS: NavSection[] = [
   ]},
   { title: 'ข้อมูลหลัก', items: [
     { key: 'personnel', label: 'จัดการบุคลากร', icon: Users, roles: SUP },
+    { key: 'annual', label: 'แผนกำลังคนรายปี', icon: CalendarRange, roles: [...SUP, 'finance'] },
     { key: 'wards', label: 'จัดการวอร์ด', icon: Building2, roles: SUP },
   ]},
   { title: 'ระบบ (Admin)', items: [
@@ -93,6 +98,8 @@ const HEADER_FILTERS: Record<TabKey, { ward?: boolean; month?: boolean; year?: b
   documents: { ward: true, month: true, year: true },
   history: { ward: true },
   reports: { month: true, year: true },
+  compliance: { ward: true, month: true, year: true },
+  annual: { ward: true, year: true },
   audit: {},
   users: {},
   settings: {},
@@ -144,6 +151,8 @@ export default function AppShell() {
       case 'documents': return <DocumentsView wardName={wardName} wardPhone={ward?.phone} wardId={wardId} year={year} month={month} />;
       case 'history': return <FormHistoryView wardId={wardId} onOpen={(y, m) => { setYear(y); setMonth(m); setTab('documents'); }} />;
       case 'reports': return <ReportsView year={year} month={month} />;
+      case 'compliance': return <ComplianceView wardName={wardName} wardId={wardId} year={year} month={month} />;
+      case 'annual': return <AnnualPlanView wardName={wardName} wardId={wardId} year={year} role={role} />;
       case 'audit': return <AuditView />;
       case 'users': return <UsersView />;
       case 'settings': return <SettingsView />;
