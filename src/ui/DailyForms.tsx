@@ -63,7 +63,7 @@ export default function DailyForms({
       </div>
 
       {/* 2) receipt voucher */}
-      <div className="gov-form" style={paper}>
+      <div className="gov-form" style={{ ...paper, pageBreakBefore: 'always' }}>
         <div style={{ textAlign: 'center', fontWeight: 700, fontSize: 18, marginBottom: 10 }}>ใบสำคัญรับเงิน</div>
         <div style={{ fontSize: 14, textAlign: 'right' }}>วันที่ ..............................</div>
         <p style={{ fontSize: 15 }}>ข้าพเจ้า ................................................... ได้รับเงินค่าจ้างลูกจ้างชั่วคราว (รายวัน) ประจำเดือน {monthName} {toThaiDigits(year)}</p>
@@ -80,7 +80,7 @@ export default function DailyForms({
       </div>
 
       {/* 3) timesheet — shows working days from the roster (fits A4 portrait, 31 days) */}
-      <div className="gov-form print-fit" style={{ ...paper }}>
+      <div className="gov-form print-fit" style={{ ...paper, pageBreakBefore: 'always' }}>
         <div style={{ textAlign: 'center', fontWeight: 700, fontSize: 18 }}>ใบลงเวลาปฏิบัติงาน (รายวัน)</div>
         <div style={{ textAlign: 'center', fontSize: 14, marginBottom: 8 }}>{wardName} ประจำเดือน {monthName} {toThaiDigits(year)}</div>
         <table style={{ fontSize: 10 }}>

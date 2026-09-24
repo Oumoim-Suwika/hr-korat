@@ -68,7 +68,7 @@ export default function DocumentsView({ wardName, wardPhone, wardId, year, month
     URL.revokeObjectURL(url);
   };
 
-  const schedule = <PrintableRoster wardName={wardName} month={month} year={year} ceYear={ceYear} days={days} employees={employees} cells={cells} signers={signers} note={roster?.note ?? null} />;
+  const schedule = <div className="print-page-break"><PrintableRoster wardName={wardName} month={month} year={year} ceYear={ceYear} days={days} employees={employees} cells={cells} signers={signers} note={roster?.note ?? null} /></div>;
 
   const renderPacket = (forPrint: boolean) => {
     if (tab === 'request') return <><div style={forPrint ? { pageBreakAfter: 'always' } : undefined}><RequestToWork wardName={wardName} wardPhone={wardPhone} month={month} year={year} employees={employees} signers={signers} /></div>{forPrint && schedule}</>;

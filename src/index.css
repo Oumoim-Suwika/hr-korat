@@ -17,17 +17,36 @@
      the @page size/orientation descriptor entirely, and mixing orientations
      in one job silently collapses the whole PDF to one orientation (which made
      portrait memos come out landscape). Portrait works in every browser. */
-  @page { size: A4 portrait; margin: 10mm; }
+  @page { size: A4 portrait; margin: 14mm; }
   html, body { background: #fff !important; }
   body * { visibility: hidden; }
   .print-sheet, .print-sheet * { visibility: visible; }
   /* top/left/width only (NO inset/bottom) so tall content paginates, not clips */
   .print-sheet { display: block; position: absolute; left: 0; top: 0; width: 100%; }
   .no-print { display: none !important; }
+
+  /* Government forms must print as clean, full-width official documents — NOT as
+     the on-screen "card" (rounded border + shadow + inner padding). Those inline
+     card styles are stripped here, and the @page margin provides the paper margin.
+     Each form is kept whole (no awkward mid-form page splits). */
+  .print-sheet .gov-form {
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    background: #fff !important;
+    max-width: 100% !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    page-break-inside: avoid;
+  }
+
   /* Wide day-grid tables (ตารางเวร / ใบลงเวลา, 28-31 วัน) shrink to fit the
      portrait page instead of overflowing. Fixed layout distributes columns. */
   .print-fit table { table-layout: fixed; width: 100%; }
   .print-fit { max-width: 100% !important; }
+
+  /* Any element explicitly marked to start on a fresh page. */
+  .print-page-break { page-break-before: always; }
 }
 
 /* TH Sarabun-style face for official documents (feedback: TH Sarabun IT9/PSK).

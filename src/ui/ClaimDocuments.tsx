@@ -90,7 +90,7 @@ export default function ClaimDocuments({
       </div>
 
       {/* Payment evidence */}
-      <div className="gov-form" style={paper}>
+      <div className="gov-form" style={{ ...paper, pageBreakBefore: 'always' }}>
         <div style={{ textAlign: 'center', fontWeight: 700, fontSize: 18 }}>{evidenceTitle}</div>
         <div style={{ textAlign: 'center', fontSize: 14, marginBottom: 10 }}>{wardName} โรงพยาบาลมหาราชนครราชสีมา ประจำเดือน {monthName} {toThaiDigits(year)}</div>
         <table style={{ fontSize: 13 }}>
