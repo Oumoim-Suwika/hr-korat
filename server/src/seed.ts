@@ -78,6 +78,20 @@ export async function seed() {
     }
   }
 
+  // Demo multi-segment OT: one ICU cell worked ชot (08-16) + บot (16-24) same day
+  // to show the summed payout + 2-segment timesheet.
+  {
+    const icu = wardByCode['ICU'];
+    if (icu) {
+      const ros = await db.select().from(schema.rosters).where(and(eq(schema.rosters.wardId, icu), eq(schema.rosters.year, 2569), eq(schema.rosters.month, 7))).limit(1);
+      const emps = await db.select().from(schema.employees).where(eq(schema.employees.homeWardId, icu)).orderBy(schema.employees.id).limit(2);
+      if (ros[0] && emps[1]) {
+        await db.update(schema.rosterCells).set({ otCode: 'ชot', otCode2: 'บot' })
+          .where(and(eq(schema.rosterCells.rosterId, ros[0].id), eq(schema.rosterCells.employeeId, emps[1].id), eq(schema.rosterCells.day, 20), isNull(schema.rosterCells.otCode2)));
+      }
+    }
+  }
+
   // shift-type levels (informational, matches jaadwen "ระดับที่ใช้"); rate stays 0
   // (= use per-position rate) until finance sets a flat per-shift rate.
   const LEVELS_BY_CODE: Record<string, string> = {

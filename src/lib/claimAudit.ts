@@ -43,11 +43,12 @@ export function auditRequestVsClaim(
       if (!days.includes(day)) continue;
       const c = cells[cellKey(e.id, day)];
       const otc = c?.otCode ?? null;
+      const otc2 = c?.otCode2 ?? null;
       const nc = c?.normalCode ?? null;
-      if (!otc && (!nc || nc === 'ออฟ')) {
+      if (!otc && !otc2 && (!nc || nc === 'ออฟ')) {
         out.push({ employeeId: e.id, name, day, kind: 'not_scheduled', requested, actual: null, detail: `ขอขึ้น "${requested}" แต่ยังไม่ได้ลงเวรในตาราง (วันที่ ${day})` });
-      } else if (requested !== otc && requested !== nc) {
-        const actual = otc ?? nc;
+      } else if (requested !== otc && requested !== otc2 && requested !== nc) {
+        const actual = otc ?? otc2 ?? nc;
         out.push({ employeeId: e.id, name, day, kind: 'mismatch', requested, actual, detail: `ขอขึ้น "${requested}" แต่ลง/เบิกเป็น "${actual}" (วันที่ ${day})` });
       }
     }

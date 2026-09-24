@@ -210,6 +210,7 @@ export const rosterCells = pgTable('roster_cells', {
   day: integer('day').notNull(),           // 1-31
   normalCode: text('normal_code'),         // ช / ออฟ ... (bottom row)
   otCode: text('ot_code'),                 // BD / ชot ... (top row), nullable
+  otCode2: text('ot_code2'),               // 2nd OT segment same day (e.g. ชot + บot)
   pinned: boolean('pinned').default(false).notNull(),
   external: boolean('external').default(false).notNull(),  // คนนอกหน่วย (OT-only)
 }, (t) => ({ uniq: uniqueIndex('cell_roster_emp_day_idx').on(t.rosterId, t.employeeId, t.day) }));

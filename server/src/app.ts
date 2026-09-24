@@ -123,6 +123,7 @@ const cellSchema = z.object({
   employeeId: z.number(), day: z.number().min(1).max(31),
   normalCode: z.string().nullable().optional(),
   otCode: z.string().nullable().optional(),
+  otCode2: z.string().nullable().optional(),
   pinned: z.boolean().optional(), external: z.boolean().optional(),
 });
 const saveRosterSchema = ymSchema.extend({
@@ -139,7 +140,7 @@ app.post('/api/rosters', requireAuth, requireRole('supervisor'), async (c) => {
   const { wardId, year, month, note, signers, cells } = parsed.data;
 
   // Guard: OT only allowed once the working calendar for the month is locked.
-  const hasOt = cells.some((x) => x.otCode);
+  const hasOt = cells.some((x) => x.otCode || x.otCode2);
   if (hasOt && !(await isCalendarLocked(wardId, year, month))) {
     return c.json({ error: 'calendar_not_locked', message: 'ต้องกำหนดและล็อกวันทำการของเดือนก่อน จึงจะใส่ OT ได้' }, 409);
   }
@@ -156,7 +157,7 @@ app.post('/api/rosters', requireAuth, requireRole('supervisor'), async (c) => {
   if (cells.length) {
     await db.insert(schema.rosterCells).values(cells.map((x) => ({
       rosterId: roster.id, employeeId: x.employeeId, day: x.day,
-      normalCode: x.normalCode ?? null, otCode: x.otCode ?? null,
+      normalCode: x.normalCode ?? null, otCode: x.otCode ?? null, otCode2: x.otCode2 ?? null,
       pinned: x.pinned ?? false, external: x.external ?? false,
     })));
   }

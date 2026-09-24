@@ -3,7 +3,7 @@ import type { Employee, RosterSigner } from '../api/client';
 import { THAI_MONTHS, THAI_DAYS_SHORT } from '../data';
 import { toThaiDigits } from '../lib/thai';
 
-interface CellMap { [k: string]: { normalCode?: string | null; otCode?: string | null }; }
+interface CellMap { [k: string]: { normalCode?: string | null; otCode?: string | null; otCode2?: string | null }; }
 const key = (empId: number, day: number) => `${empId}-${day}`;
 
 /**
@@ -70,7 +70,8 @@ export default function PrintableRoster({
                 <td rowSpan={2} style={{ fontSize: 9 }}>{emp.positionText ?? ''}</td>
                 {days.map((d) => {
                   const c = cells[key(emp.id, d)];
-                  return <td key={d} style={{ textAlign: 'center', height: 13, fontSize: 8, fontWeight: 700 }}>{c?.otCode ?? ''}</td>;
+                  const otTxt = [c?.otCode, c?.otCode2].filter(Boolean).join('/');
+                  return <td key={d} style={{ textAlign: 'center', height: 13, fontSize: 8, fontWeight: 700 }}>{otTxt}</td>;
                 })}
                 <td rowSpan={2} />
               </tr>

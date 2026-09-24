@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { api, type Employee, type RosterSigner, type Roster } from '../api/client';
 import { DEFAULT_OT_SETTINGS } from '../data';
 
-export interface CellMap { [k: string]: { normalCode?: string | null; otCode?: string | null }; }
+export interface CellMap { [k: string]: { normalCode?: string | null; otCode?: string | null; otCode2?: string | null }; }
 export const cellKey = (empId: number, day: number) => `${empId}-${day}`;
 
 const OT_CODES = new Set(['ชot', 'บot', 'ดot', 'BD', 'OR']);
@@ -65,17 +65,19 @@ export interface Claim {
   byCode: Record<string, number>;   // code -> count
 }
 
-/** Compute a person's OT reimbursement for the month from roster cells. */
+/** Compute a person's OT reimbursement for the month from roster cells.
+ * A day may carry up to two OT segments (otCode + otCode2), each paid separately. */
 export function computeClaim(emp: Employee, cells: CellMap, days: number[]): Claim {
   let otCount = 0, amount = 0;
   const byCode: Record<string, number> = {};
   for (const d of days) {
     const c = cells[cellKey(emp.id, d)];
-    const code = c?.otCode;
-    if (code && OT_CODES.has(code)) {
-      otCount++;
-      amount += rateFor(emp.role, code);
-      byCode[code] = (byCode[code] || 0) + 1;
+    for (const code of [c?.otCode, c?.otCode2]) {
+      if (code && OT_CODES.has(code)) {
+        otCount++;
+        amount += rateFor(emp.role, code);
+        byCode[code] = (byCode[code] || 0) + 1;
+      }
     }
   }
   return { employee: emp, otCount, amount, byCode };
@@ -97,7 +99,7 @@ export function useAllWardsData(year: number, month: number) {
       setEmployees(all);
       const rosters = await Promise.all(ws.map((w) => api.getRoster(w.id, year, month)));
       const map: CellMap = {};
-      for (const r of rosters) for (const c of r.cells) map[cellKey(c.employeeId, c.day)] = { normalCode: c.normalCode, otCode: c.otCode };
+      for (const r of rosters) for (const c of r.cells) map[cellKey(c.employeeId, c.day)] = { normalCode: c.normalCode, otCode: c.otCode, otCode2: c.otCode2 };
       setCells(map);
     } finally { setLoading(false); }
   }, [year, month]);
@@ -125,7 +127,7 @@ export function useRosterData(wardId: number, year: number, month: number) {
       setRoster(ros.roster);
       setSigners(ros.signers ?? []);
       const map: CellMap = {};
-      for (const c of ros.cells) map[cellKey(c.employeeId, c.day)] = { normalCode: c.normalCode, otCode: c.otCode };
+      for (const c of ros.cells) map[cellKey(c.employeeId, c.day)] = { normalCode: c.normalCode, otCode: c.otCode, otCode2: c.otCode2 };
       setCells(map);
     } finally { setLoading(false); }
   }, [wardId, year, month]);

@@ -120,10 +120,10 @@ export function autoSchedule(
   }
 
   const cells: CellMap = {};
-  // preserve existing OT codes
+  // preserve existing OT codes (both segments)
   for (const e of employees) for (const d of days) {
-    const ot = existing[cellKey(e.id, d)]?.otCode ?? null;
-    if (ot) cells[cellKey(e.id, d)] = { otCode: ot };
+    const ex = existing[cellKey(e.id, d)];
+    if (ex?.otCode || ex?.otCode2) cells[cellKey(e.id, d)] = { otCode: ex.otCode ?? null, otCode2: ex.otCode2 ?? null };
   }
 
   const st = new Map<number, State>();

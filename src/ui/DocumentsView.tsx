@@ -22,8 +22,10 @@ export default function DocumentsView({ wardName, wardPhone, wardId, year, month
   const { otCount, otTotal } = useMemo(() => {
     let total = 0; const people = new Set<number>();
     for (const e of employees) for (const d of days) {
-      const c = cells[cellKey(e.id, d)]?.otCode;
-      if (c && c !== 'BD') { total += rateFor(e.role, c); people.add(e.id); }
+      const cell = cells[cellKey(e.id, d)];
+      for (const c of [cell?.otCode, cell?.otCode2]) {
+        if (c && c !== 'BD') { total += rateFor(e.role, c); people.add(e.id); }
+      }
     }
     return { otCount: people.size, otTotal: total };
   }, [employees, cells, days]);

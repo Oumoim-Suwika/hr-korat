@@ -22,7 +22,7 @@ function metaFor(code?: string | null) {
   return (META as any)[code] ?? { bgClass: 'bg-slate-100', textClass: 'text-slate-700', name: code };
 }
 
-type CellMap = Record<string, { normalCode?: string | null; otCode?: string | null }>;
+type CellMap = Record<string, { normalCode?: string | null; otCode?: string | null; otCode2?: string | null }>;
 const key = (empId: number, day: number) => `${empId}-${day}`;
 
 interface Props {
@@ -97,7 +97,7 @@ export default function ScheduleView({ role, wards, wardId, year, month }: Props
       setSigners(ros.signers ?? []);
       setNoteText(ros.roster?.note ?? '');
       const map: CellMap = {};
-      for (const c of ros.cells) map[key(c.employeeId, c.day)] = { normalCode: c.normalCode, otCode: c.otCode };
+      for (const c of ros.cells) map[key(c.employeeId, c.day)] = { normalCode: c.normalCode, otCode: c.otCode, otCode2: c.otCode2 };
       setCells(map);
       // external = people with cells but not in this ward's staff, or flagged external
       const wardIds = new Set(emps.map((e) => e.id));
@@ -124,9 +124,16 @@ export default function ScheduleView({ role, wards, wardId, year, month }: Props
       const cur = { ...(prev[k] ?? {}) };
       if (brush === 'ERASE') { return { ...prev, [k]: {} }; }
       const isOt = (META as any)[brush]?.isOt || OT_BRUSH.includes(brush);
-      if (ext) { if (isOt) cur.otCode = cur.otCode === brush ? null : brush; } // external = OT only
-      else if (isOt) cur.otCode = cur.otCode === brush ? null : brush;
-      else cur.normalCode = cur.normalCode === brush ? null : brush;
+      if (isOt) {
+        // up to 2 OT segments/day (เช่น ชot 08-16 + บot 16-24). Toggle/fill/replace.
+        if (cur.otCode === brush) { cur.otCode = cur.otCode2 ?? null; cur.otCode2 = null; }
+        else if (cur.otCode2 === brush) { cur.otCode2 = null; }
+        else if (!cur.otCode) cur.otCode = brush;
+        else if (!cur.otCode2) cur.otCode2 = brush;
+        else cur.otCode2 = brush;
+      } else if (!ext) {
+        cur.normalCode = cur.normalCode === brush ? null : brush;
+      }
       return { ...prev, [k]: cur };
     });
   };
@@ -184,8 +191,8 @@ export default function ScheduleView({ role, wards, wardId, year, month }: Props
       const ext = isExternal(emp.id);
       for (const day of days) {
         const c = cells[key(emp.id, day)];
-        if (c && (c.normalCode || c.otCode)) {
-          out.push({ employeeId: emp.id, day, normalCode: ext ? null : (c.normalCode ?? null), otCode: c.otCode ?? null, external: ext });
+        if (c && (c.normalCode || c.otCode || c.otCode2)) {
+          out.push({ employeeId: emp.id, day, normalCode: ext ? null : (c.normalCode ?? null), otCode: c.otCode ?? null, otCode2: c.otCode2 ?? null, external: ext });
         }
       }
     }
@@ -246,6 +253,7 @@ export default function ScheduleView({ role, wards, wardId, year, month }: Props
       if (!c) continue;
       if (c.normalCode && metaFor(c.normalCode)?.name && c.normalCode !== 'ออฟ' && (META as any)[c.normalCode]?.isWork !== false) work++;
       if (c.otCode) ot++;
+      if (c.otCode2) ot++;
     }
     return { work, ot };
   };
@@ -422,6 +430,7 @@ export default function ScheduleView({ role, wards, wardId, year, month }: Props
                           className={`border-b border-l border-slate-100 text-center p-0 ${canEdit ? 'cursor-pointer' : ''}`} style={{ height: 34 }}>
                           <div className="flex flex-col items-stretch justify-center h-full leading-none">
                             {c?.otCode && <div className={`text-[10px] font-semibold ${ot?.bgClass} ${ot?.textClass}`}>{c.otCode}</div>}
+                            {c?.otCode2 && <div className={`text-[10px] font-semibold ${metaFor(c.otCode2)?.bgClass} ${metaFor(c.otCode2)?.textClass}`}>{c.otCode2}</div>}
                             {ext
                               ? <div className="text-[10px] py-0.5 text-slate-300 bg-slate-50">·</div>
                               : <div className={`text-[11px] py-0.5 ${nm?.bgClass ?? ''} ${nm?.textClass ?? 'text-slate-300'}`}>{c?.normalCode ?? ''}</div>}

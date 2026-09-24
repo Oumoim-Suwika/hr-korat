@@ -265,6 +265,7 @@ CREATE TABLE IF NOT EXISTS roster_cells (
   external boolean NOT NULL DEFAULT false
 );
 CREATE UNIQUE INDEX IF NOT EXISTS cell_roster_emp_day_idx ON roster_cells (roster_id, employee_id, day);
+ALTER TABLE roster_cells ADD COLUMN IF NOT EXISTS ot_code2 text;
 
 CREATE TABLE IF NOT EXISTS roster_signers (
   id serial PRIMARY KEY,

@@ -41,7 +41,7 @@ export default function ReconcileView({ wardId, year, month }: { wardId: number;
 
   const rows = useMemo(() => scoped.map((e) => {
     const claim = computeClaim(e, cells, days);
-    const otDays = days.filter((d) => cells[cellKey(e.id, d)]?.otCode);
+    const otDays = days.filter((d) => { const c = cells[cellKey(e.id, d)]; return c?.otCode || c?.otCode2; });
     // approved leave days for this employee
     const leaveDays = new Set<number>();
     for (const r of requests) {

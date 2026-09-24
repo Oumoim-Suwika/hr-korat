@@ -25,8 +25,10 @@ function claimsFor(employees: Employee[], cells: CellMap, days: number[], codes:
   return employees.map((e) => {
     const byCode: Record<string, number> = {}; let count = 0, amount = 0;
     for (const d of days) {
-      const code = cells[cellKey(e.id, d)]?.otCode;
-      if (code && codes.includes(code)) { byCode[code] = (byCode[code] || 0) + 1; count++; amount += rateFor(e.role, code); }
+      const cell = cells[cellKey(e.id, d)];
+      for (const code of [cell?.otCode, cell?.otCode2]) {
+        if (code && codes.includes(code)) { byCode[code] = (byCode[code] || 0) + 1; count++; amount += rateFor(e.role, code); }
+      }
     }
     return { employee: e, count, amount, byCode };
   }).filter((c) => c.count > 0);
@@ -156,7 +158,7 @@ export default function ClaimDocuments({
             {claims.map((c) => (
               <tr key={c.employee.id}>
                 <td style={{ fontSize: 11 }}>{c.employee.prefix}{c.employee.firstName} {c.employee.lastName ?? ''}</td>
-                {days.map((d) => { const code = cells[cellKey(c.employee.id, d)]?.otCode; const hit = !!code && cols.includes(code); return <td key={d} style={{ textAlign: 'center', fontSize: 8, background: hit ? '#fde2e4' : undefined, fontWeight: hit ? 700 : undefined }}>{hit ? code : ''}</td>; })}
+                {days.map((d) => { const cell = cells[cellKey(c.employee.id, d)]; const hits = [cell?.otCode, cell?.otCode2].filter((x): x is string => !!x && cols.includes(x)); const hit = hits.length > 0; return <td key={d} style={{ textAlign: 'center', fontSize: 8, background: hit ? '#fde2e4' : undefined, fontWeight: hit ? 700 : undefined }}>{hits.join('/')}</td>; })}
                 <td style={{ textAlign: 'center', fontWeight: 700 }}>{toThaiDigits(c.count)}</td>
               </tr>
             ))}

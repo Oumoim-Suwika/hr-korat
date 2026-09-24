@@ -68,7 +68,7 @@ export interface Roster {
 }
 export interface RosterCell {
   id?: number; employeeId: number; day: number;
-  normalCode?: string | null; otCode?: string | null; pinned?: boolean; external?: boolean;
+  normalCode?: string | null; otCode?: string | null; otCode2?: string | null; pinned?: boolean; external?: boolean;
 }
 export interface RosterSigner { ordinal: number; name: string; title?: string | null; signerRole?: 'controller' | 'approver' | 'other'; }
 export interface RequestItem {
