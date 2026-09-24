@@ -312,6 +312,80 @@ export async function seed() {
     })));
   }
 
+  // ==========================================================================
+  // BACKFILLS — make mock data complete for every page & role (idempotent).
+  // These run even when the core blocks above were already seeded, patching
+  // data that was missing (e.g. employees added after their roster existed).
+  // ==========================================================================
+
+  // (A) Ensure EVERY ward employee has roster cells. Daily-wage staff in U01
+  //     were inserted after the U01 roster was built, so their เบิกรายวัน form
+  //     showed 0 วัน/0 บาท. Backfill weekday ช / weekend ออฟ for anyone missing.
+  const allRostersBf = await db.select().from(schema.rosters);
+  for (const r of allRostersBf) {
+    const wardEmps = await db.select().from(schema.employees).where(eq(schema.employees.homeWardId, r.wardId));
+    if (wardEmps.length === 0) continue;
+    const cellRows = await db.select({ employeeId: schema.rosterCells.employeeId }).from(schema.rosterCells).where(eq(schema.rosterCells.rosterId, r.id));
+    const have = new Set(cellRows.map((c: any) => c.employeeId));
+    const missing = wardEmps.filter((e: any) => !have.has(e.id));
+    if (missing.length === 0) continue;
+    const dim = new Date(r.year - 543, r.month, 0).getDate();
+    const cells: any[] = [];
+    for (const emp of missing) {
+      for (let d = 1; d <= dim; d++) {
+        const wd = new Date(r.year - 543, r.month - 1, d).getDay();
+        const weekend = wd === 0 || wd === 6;
+        cells.push({ rosterId: r.id, employeeId: emp.id, day: d, normalCode: weekend ? 'ออฟ' : 'ช', otCode: null });
+      }
+    }
+    if (cells.length) await db.insert(schema.rosterCells).values(cells);
+  }
+
+  // (B) Staffing requirement for wards that have none (U01, GS) so the
+  //     "ความต้องการพนักงาน" page is populated for every ward.
+  for (const code of ['U01', 'GS']) {
+    const wid = wardByCode[code];
+    if (!wid) continue;
+    const n = await db.select({ n: sql<number>`count(*)` }).from(schema.staffingRequirements).where(eq(schema.staffingRequirements.wardId, wid));
+    if (Number(n[0].n) > 0) continue;
+    await db.insert(schema.staffingRequirements).values([
+      { wardId: wid, level: 'พยาบาลวิชาชีพ (RN)', shiftCode: 'ช', count: 2 },
+      { wardId: wid, level: 'พยาบาลวิชาชีพ (RN)', shiftCode: 'บ', count: 1 },
+      { wardId: wid, level: 'ผู้ช่วยพยาบาล (PN)', shiftCode: 'ช', count: 1 },
+    ]);
+  }
+
+  // (C) U01 (default finance ward) should also have leave & shift_change so the
+  //     คำขอลา / คำขอแลกเวร pages show data for supervisor & staff. Assigned to
+  //     firstEmpId so the staff.u01 login (scoped to own requests) sees them.
+  if (u01b && firstEmpId) {
+    const u01types = await db.select({ type: schema.requests.type }).from(schema.requests).where(eq(schema.requests.wardId, u01b));
+    const have = new Set(u01types.map((r: any) => r.type));
+    const add: any[] = [];
+    if (!have.has('leave')) add.push({ type: 'leave', employeeId: firstEmpId, wardId: u01b, year: 2569, month: 7, day: 23, toDay: 24, reason: 'ลากิจส่วนตัว 2 วัน', status: 'approved' });
+    if (!have.has('shift_change')) add.push({ type: 'shift_change', employeeId: firstEmpId, wardId: u01b, year: 2569, month: 7, day: 15, fromCode: 'ช', toCode: 'บ', reason: 'ขอสลับเป็นเวรบ่ายเพื่อเข้าประชุม', status: 'pending' });
+    if (add.length) await db.insert(schema.requests).values(add);
+  }
+
+  // (D) Seed a few audit-log entries so the "บันทึกการตรวจสอบ" page (finance/admin)
+  //     shows data before any live action is taken.
+  const auditN = await db.select({ n: sql<number>`count(*)` }).from(schema.auditLogs);
+  if (Number(auditN[0].n) === 0) {
+    const adminU = await db.select().from(schema.users).where(eq(schema.users.email, 'admin@sati.local'));
+    const finU = await db.select().from(schema.users).where(eq(schema.users.email, 'finance@sati.local'));
+    const supU = await db.select().from(schema.users).where(eq(schema.users.email, 'head.u01@sati.local'));
+    const aId = adminU[0]?.id ?? null, fId = finU[0]?.id ?? null, sId = supU[0]?.id ?? null;
+    const anyRoster = await db.select().from(schema.rosters).limit(1);
+    const rId = anyRoster[0]?.id ? String(anyRoster[0].id) : null;
+    await db.insert(schema.auditLogs).values([
+      { actorUserId: aId, entity: 'auth', entityId: null, action: 'login', detail: { email: 'admin@sati.local' } },
+      { actorUserId: sId, entity: 'working_calendar', entityId: rId, action: 'lock', detail: { wardId: wardByCode['U01'], workingDays: 22 } },
+      { actorUserId: sId, entity: 'roster', entityId: rId, action: 'submit', detail: { year: 2569, month: 7 } },
+      { actorUserId: fId, entity: 'roster', entityId: rId, action: 'approve', detail: { year: 2569, month: 7 } },
+      { actorUserId: fId, entity: 'request', entityId: null, action: 'decide', detail: { decision: 'approved', type: 'ot' } },
+    ]);
+  }
+
   console.log('Seed complete. Wards:', wardRows.length, '| Positions:', posRows.length);
 }
 

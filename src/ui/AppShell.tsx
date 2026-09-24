@@ -117,7 +117,7 @@ export default function AppShell() {
 
   useEffect(() => {
     (async () => {
-      try { const w = await api.wards(); setWards(w); setWardId((c) => c ?? w[0]?.id ?? null); }
+      try { const w = await api.wards(); setWards(w); setWardId((c) => c ?? (w.find((x) => x.code === 'ICU')?.id) ?? w[0]?.id ?? null); }
       finally { setLoading(false); }
     })();
   }, []);
