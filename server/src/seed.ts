@@ -261,20 +261,35 @@ export async function seed() {
     }
   }
 
-  // holidays 2569 (a few key ones) — idempotent
-  const hExisting = await db.select({ n: sql<number>`count(*)` }).from(schema.holidays).where(eq(schema.holidays.year, SY2));
-  if (Number(hExisting[0].n) === 0) {
-    await db.insert(schema.holidays).values([
-      { year: SY2, date: '07-28', name: 'วันเฉลิมพระชนมพรรษา ร.10' },
-      { year: SY2, date: '07-29', name: 'วันอาสาฬหบูชา' },
-      { year: SY2, date: '07-30', name: 'วันเข้าพรรษา' },
-      { year: SY2, date: '08-12', name: 'วันแม่แห่งชาติ' },
-      { year: SY2, date: '10-13', name: 'วันคล้ายวันสวรรคต ร.9' },
-      { year: SY2, date: '10-23', name: 'วันปิยมหาราช' },
-      { year: SY2, date: '12-05', name: 'วันพ่อแห่งชาติ' },
-      { year: SY2, date: '12-10', name: 'วันรัฐธรรมนูญ' },
-    ]);
-  }
+  // holidays 2569 — full official calendar (incl. substitution days), idempotent.
+  // Insert-if-missing per date so it backfills DBs that only had the early subset.
+  const HOLIDAYS_2569: [string, string][] = [
+    ['01-01', 'วันขึ้นปีใหม่'],
+    ['03-03', 'วันมาฆบูชา'],
+    ['04-06', 'วันจักรี'],
+    ['04-13', 'วันสงกรานต์'],
+    ['04-14', 'วันสงกรานต์'],
+    ['04-15', 'วันสงกรานต์'],
+    ['05-01', 'วันแรงงานแห่งชาติ'],
+    ['05-04', 'วันฉัตรมงคล'],
+    ['05-31', 'วันวิสาขบูชา'],
+    ['06-01', 'ชดเชยวันวิสาขบูชา'],
+    ['06-03', 'วันเฉลิมพระชนมพรรษาสมเด็จพระนางเจ้าฯ พระบรมราชินี'],
+    ['07-28', 'วันเฉลิมพระชนมพรรษา พระบาทสมเด็จพระเจ้าอยู่หัว (ร.10)'],
+    ['07-29', 'วันอาสาฬหบูชา'],
+    ['07-30', 'วันเข้าพรรษา'],
+    ['08-12', 'วันแม่แห่งชาติ'],
+    ['10-13', 'วันนวมินทรมหาราช (คล้ายวันสวรรคต ร.9)'],
+    ['10-23', 'วันปิยมหาราช'],
+    ['12-05', 'วันชาติ / วันพ่อแห่งชาติ (คล้ายวันพระบรมราชสมภพ ร.9)'],
+    ['12-07', 'ชดเชยวันชาติ / วันพ่อแห่งชาติ'],
+    ['12-10', 'วันรัฐธรรมนูญ'],
+    ['12-31', 'วันสิ้นปี'],
+  ];
+  const existingHol = await db.select({ date: schema.holidays.date }).from(schema.holidays).where(eq(schema.holidays.year, SY2));
+  const haveHol = new Set(existingHol.map((h: any) => h.date));
+  const holToAdd = HOLIDAYS_2569.filter(([d]) => !haveHol.has(d)).map(([date, name]) => ({ year: SY2, date, name }));
+  if (holToAdd.length) await db.insert(schema.holidays).values(holToAdd);
 
   // ---- daily-wage employee in U01 (for รายวัน forms) — idempotent ----------
   const u01b = wardByCode['U01'];

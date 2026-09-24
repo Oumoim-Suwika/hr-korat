@@ -8,17 +8,29 @@ export default function HolidaysView({ year, role }: { year: number; role: UserR
   const ceYear = year - 543;
   const [rows, setRows] = useState<{ id: number; date: string; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
   const [nd, setNd] = useState({ date: '', name: '' });
   const canEdit = role === 'supervisor' || role === 'admin';
+  const flash = (m: string) => { setToast(m); setTimeout(() => setToast(null), 3000); };
+
+  // The built-in official set is the 2569 (2026) calendar; only offer auto-import
+  // for that year so we never insert wrong dates for another year.
+  const canAutoImport = year === 2569;
 
   const load = () => { setLoading(true); api.getHolidays(year).then(setRows).finally(() => setLoading(false)); };
   useEffect(load, [year]);
 
   const importDefaults = async () => {
-    for (const [date, name] of Object.entries(THAI_HOLIDAYS_2026)) {
-      if (!rows.some((r) => r.date === date)) await api.addHoliday({ year, date, name });
-    }
-    load();
+    setBusy(true);
+    try {
+      let added = 0;
+      for (const [date, name] of Object.entries(THAI_HOLIDAYS_2026)) {
+        if (!rows.some((r) => r.date === date)) { await api.addHoliday({ year, date, name }); added++; }
+      }
+      flash(added ? `นำเข้าวันหยุดราชการ ${year} แล้ว ${added} วัน (ทั้งหมด ${Object.keys(THAI_HOLIDAYS_2026).length} วัน)` : `วันหยุด ${year} ครบอยู่แล้ว (${Object.keys(THAI_HOLIDAYS_2026).length} วัน)`);
+      load();
+    } finally { setBusy(false); }
   };
   const add = async () => { if (!nd.date || !nd.name) return; await api.addHoliday({ year, ...nd }); setNd({ date: '', name: '' }); load(); };
   const del = async (id: number) => { await api.deleteHoliday(id); load(); };
@@ -32,8 +44,9 @@ export default function HolidaysView({ year, role }: { year: number; role: UserR
           <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2"><CalendarDays className="w-5 h-5 text-[#0F3575]" />ปฏิทินวันหยุด {year} ({ceYear})</h2>
           <p className="text-sm text-slate-500">ใช้กำหนดวันหยุดราชการ สำหรับคำนวณเวร ชot / ค่าตอบแทนวันหยุด</p>
         </div>
-        {canEdit && <button onClick={importDefaults} className="flex items-center gap-1.5 text-sm text-[#0F3575] border border-[#0F3575]/30 px-3 py-2 rounded-lg"><DownloadCloud className="w-4 h-4" />นำเข้าวันหยุดราชการ</button>}
+        {canEdit && <button onClick={importDefaults} disabled={busy || !canAutoImport} title={canAutoImport ? '' : 'มีชุดข้อมูลอัตโนมัติเฉพาะปี 2569'} className="flex items-center gap-1.5 text-sm text-white bg-[#0F3575] px-3 py-2 rounded-lg disabled:opacity-50">{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <DownloadCloud className="w-4 h-4" />}นำเข้าวันหยุด {year} อัตโนมัติ</button>}
       </div>
+      {toast && <div className="text-sm bg-emerald-50 text-emerald-700 rounded-lg px-3 py-2">{toast}</div>}
 
       {canEdit && (
         <div className="bg-white border border-slate-200 rounded-lg p-3 flex flex-wrap gap-2 items-end">
