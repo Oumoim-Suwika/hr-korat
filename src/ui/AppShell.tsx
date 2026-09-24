@@ -215,7 +215,7 @@ export default function AppShell() {
           ))}
         </nav>
         <div className="p-3 border-t border-white/10">
-          <div className="px-2 mb-2"><div className="text-sm font-medium">{user.displayName}</div><div className="text-[11px] text-white/60">{ROLE_LABEL[role]}</div></div>
+          <div className="px-2 mb-2"><div className="text-sm font-medium">{user.displayName}</div><div className="text-[11px] text-white/60">{role === 'supervisor' ? (user.wardId ? 'หัวหน้าวอร์ด' : 'หัวหน้าพยาบาล') : ROLE_LABEL[role]}</div></div>
           <button onClick={logout} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-white/80 hover:bg-white/10"><LogOut className="w-4 h-4" />ออกจากระบบ</button>
         </div>
       </aside>

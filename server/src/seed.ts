@@ -526,6 +526,10 @@ export async function seed() {
       }).onConflictDoNothing({ target: schema.users.email });
     }
   }
+  // หัวหน้าพยาบาล — supervisor without ward scope → ดู/จัดเวรได้ทุกหอ (ภาพรวม)
+  await db.insert(schema.users).values({
+    email: 'head.nursing@sati.local', displayName: 'หัวหน้าพยาบาล (ภาพรวมทุกหอ)', role: 'supervisor', wardId: null, employeeId: null, passwordHash: hash,
+  }).onConflictDoNothing({ target: schema.users.email });
 
   // (F) Seniority + employee code backfill — drives AI senior detection & อายุงาน.
   const noStart = await db.select().from(schema.employees).where(isNull(schema.employees.startDate));

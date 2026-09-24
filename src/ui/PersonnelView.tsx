@@ -55,15 +55,15 @@ export default function PersonnelView({ wardId, wardName, role }: { wardId: numb
     const start = lines[0]?.toLowerCase().includes('firstname') || lines[0]?.includes('ชื่อ') ? 1 : 0;
     const target = filterWard === 'all' ? wardId : filterWard;
     const emps = lines.slice(start).map((l) => {
-      const [prefix, firstName, lastName, r, positionText, employeeType, paymentType] = l.split(',').map((s) => s?.trim());
-      return { prefix, firstName, lastName, role: (['doctor', 'nurse', 'assistant', 'room', 'support'].includes(r) ? r : 'support'), positionText, employeeType: employeeType || 'ข้าราชการ', paymentType: (['รายเดือน', 'รายวัน', 'รายคาบ'].includes(paymentType) ? paymentType : 'รายเดือน'), homeWardId: target };
+      const [prefix, firstName, lastName, r, positionText, employeeType, paymentType, level] = l.split(',').map((s) => s?.trim());
+      return { prefix, firstName, lastName, role: (['doctor', 'nurse', 'assistant', 'room', 'support'].includes(r) ? r : 'support'), positionText, employeeType: employeeType || 'ข้าราชการ', paymentType: (['รายเดือน', 'รายวัน', 'รายคาบ'].includes(paymentType) ? paymentType : 'รายเดือน'), level: (['L', 'M', 'S', 'S2'].includes(level) ? level : undefined), homeWardId: target };
     }).filter((e) => e.firstName);
     if (!emps.length) { flash('ไม่พบข้อมูลในไฟล์'); return; }
     const n = await api.importEmployees(emps); load(); flash(`นำเข้า ${n} รายชื่อเข้า ${wardName2(target)} แล้ว`);
   };
 
   const template = () => {
-    const csv = 'prefix,firstName,lastName,role,positionText,employeeType,paymentType\nนางสาว,สมหญิง,ใจดี,nurse,พยาบาลวิชาชีพ,ข้าราชการ,รายเดือน';
+    const csv = 'prefix,firstName,lastName,role,positionText,employeeType,paymentType,level\nนางสาว,สมหญิง,ใจดี,nurse,พยาบาลวิชาชีพ,ข้าราชการ,รายเดือน,S\nนาง,วิภา,ดูแลดี,nurse,พยาบาลวิชาชีพชำนาญการ (หัวหน้าเวร),ข้าราชการ,รายเดือน,L';
     const b = new Blob(['\uFEFF' + csv], { type: 'text/csv' }); const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'template_personnel.csv'; a.click();
   };
 
