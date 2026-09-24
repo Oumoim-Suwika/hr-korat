@@ -22,6 +22,7 @@ import FinanceView from './FinanceView';
 import DocumentsView from './DocumentsView';
 import ReportsView from './ReportsView';
 import PayrollView from './PayrollView';
+import ReconcileView from './ReconcileView';
 import FormHistoryView from './FormHistoryView';
 import AuditView from './AuditView';
 import UsersView from './UsersView';
@@ -29,7 +30,7 @@ import SettingsView from './SettingsView';
 
 type TabKey =
   | 'dashboard' | 'schedule' | 'daily' | 'personnel' | 'wards' | 'staffing' | 'shifts'
-  | 'holidays' | 'swap' | 'leave' | 'ot' | 'finance' | 'payroll' | 'documents' | 'history' | 'reports' | 'audit' | 'users' | 'settings';
+  | 'holidays' | 'swap' | 'leave' | 'ot' | 'finance' | 'reconcile' | 'payroll' | 'documents' | 'history' | 'reports' | 'audit' | 'users' | 'settings';
 
 const ALL: UserRole[] = ['staff', 'supervisor', 'finance', 'admin'];
 const SUP: UserRole[] = ['supervisor', 'admin'];
@@ -54,6 +55,7 @@ const SECTIONS: NavSection[] = [
   ]},
   { title: 'การเงิน & เอกสาร', items: [
     { key: 'finance', label: 'การเงิน & เบิกจ่าย', icon: DollarSign, roles: FIN },
+    { key: 'reconcile', label: 'ตรวจสอบเวร↔เบิก', icon: ShieldCheck, roles: FIN },
     { key: 'payroll', label: 'เงินเดือน (Payroll)', icon: Wallet, roles: FIN },
     { key: 'documents', label: 'ฟอร์มตั้งเบิก (ครุฑ)', icon: FileText, roles: ALL },
     { key: 'history', label: 'ประวัติฟอร์ม', icon: History, roles: [...SUP, 'finance'] },
@@ -113,6 +115,7 @@ export default function AppShell() {
       case 'leave': return <RequestsView role={role} wardId={wardId} year={year} month={month} myEmployeeId={user.employeeId} filterType="leave" title="คำขอลา" />;
       case 'ot': return <RequestsView role={role} wardId={wardId} year={year} month={month} myEmployeeId={user.employeeId} filterType="ot" title="คำขอขึ้น OT" />;
       case 'finance': return <FinanceView wardName={wardName} wardId={wardId} year={year} month={month} />;
+      case 'reconcile': return <ReconcileView wardId={wardId} year={year} month={month} />;
       case 'payroll': return <PayrollView wardName={wardName} wardId={wardId} year={year} month={month} />;
       case 'documents': return <DocumentsView wardName={wardName} wardPhone={ward?.phone} wardId={wardId} year={year} month={month} />;
       case 'history': return <FormHistoryView wardId={wardId} onOpen={(y, m) => { setYear(y); setMonth(m); setTab('documents'); }} />;
