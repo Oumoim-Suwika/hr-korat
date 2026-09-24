@@ -157,7 +157,7 @@ export default function AppShell() {
   const renderView = () => {
     if (loading || wardId == null) return <div className="grid place-items-center py-20 text-slate-400"><Loader2 className="w-6 h-6 animate-spin" /></div>;
     switch (tab) {
-      case 'dashboard': return <DashboardView year={year} month={month} />;
+      case 'dashboard': return <DashboardView year={year} month={month} userName={user.displayName} onNav={(t) => setTab(t as TabKey)} />;
       case 'schedule': return <ScheduleView role={role} wards={wards} wardId={wardId} year={year} month={month} />;
       case 'daily': return <DailyView wardName={wardName} wardId={wardId} year={year} month={month} />;
       case 'personnel': return <PersonnelView wardId={wardId} wardName={wardName} role={role} />;

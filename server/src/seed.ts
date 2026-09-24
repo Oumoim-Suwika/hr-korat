@@ -637,6 +637,22 @@ export async function seed() {
     }
   }
 
+  // Migrate staffing to L/M/S/S2 levels (jaadwen-style). Any ward whose staffing
+  // still uses old level names is replaced with an L/M/S/S2 matrix (idempotent:
+  // once a ward has L/M/S/S2 rows it is left as-is, preserving edits).
+  const LMSS_DEFAULT: [string, string, number][] = [
+    ['ช', 'L', 1], ['ช', 'M', 2], ['ช', 'S', 2], ['ช', 'S2', 1],
+    ['บ', 'L', 1], ['บ', 'M', 1], ['บ', 'S', 2], ['บ', 'S2', 1],
+    ['ด', 'L', 1], ['ด', 'M', 1], ['ด', 'S', 1], ['ด', 'S2', 0],
+  ];
+  for (const w of wardRows as any[]) {
+    const st = await db.select().from(schema.staffingRequirements).where(eq(schema.staffingRequirements.wardId, w.id));
+    if (st.length === 0) continue;
+    if (st.some((r: any) => ['L', 'M', 'S', 'S2'].includes(r.level))) continue;
+    await db.delete(schema.staffingRequirements).where(eq(schema.staffingRequirements.wardId, w.id));
+    await db.insert(schema.staffingRequirements).values(LMSS_DEFAULT.map(([shiftCode, level, count]) => ({ wardId: w.id, level, shiftCode, count })));
+  }
+
   // (K) De-duplicate rows that lack a DB unique constraint. Concurrent Lambda
   //     cold-starts can both pass a count guard and double-insert; this keeps
   //     the lowest id per natural key and is safe to run repeatedly.
