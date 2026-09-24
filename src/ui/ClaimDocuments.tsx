@@ -64,13 +64,16 @@ export default function ClaimDocuments({
     ? 'หลักฐานการจ่ายเงินค่าตอบแทนการปฏิบัติงานเวรบ่าย-ดึก'
     : 'หลักฐานการจ่ายเงินค่าตอบแทนการปฏิบัติงานนอกเวลาราชการและวันหยุดราชการ';
 
-  const paper: React.CSSProperties = { background: '#fff', border: '1px solid #cbd5e1', borderRadius: 6, padding: '18mm 16mm', maxWidth: 800, margin: '0 auto', lineHeight: 1.7 };
+  const paper: React.CSSProperties = { background: '#fff', border: '1px solid #cbd5e1', borderRadius: 6, padding: '15mm', maxWidth: '190mm', margin: '0 auto', lineHeight: 1.6 };
 
   return (
     <div className="space-y-6">
       {/* Memo */}
       <div className="gov-form" style={paper}>
-        <div style={{ textAlign: 'center', fontWeight: 700, fontSize: 26, marginBottom: 8 }}>บันทึกข้อความ</div>
+        <div style={{ position: 'relative', minHeight: 56, marginBottom: 2 }}>
+          <img src="/kruth.png" alt="ตราครุฑ" style={{ height: 54, position: 'absolute', left: 0, top: 0 }} />
+          <div style={{ textAlign: 'center', fontWeight: 700, fontSize: 24, paddingTop: 12 }}>บันทึกข้อความ</div>
+        </div>
         <div style={{ fontSize: 15 }}>
           <div><b>ส่วนราชการ</b>&nbsp; {wardName} โรงพยาบาลมหาราชนครราชสีมา&nbsp; โทร. {toThaiDigits(wardPhone ?? '-')}</div>
           <div style={{ display: 'flex', justifyContent: 'space-between' }}><span><b>ที่</b>&nbsp; {unit.prefix}.........</span><span><b>วันที่</b>&nbsp; {todayThai()}</span></div>

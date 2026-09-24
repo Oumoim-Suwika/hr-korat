@@ -40,7 +40,7 @@ export default function DocumentsView({ wardName, wardPhone, wardId, year, month
   // Export the current packet as an editable Word (.doc) file — attachable.
   const downloadDoc = () => {
     const inner = (previewRef.current?.innerHTML ?? '')
-      .replaceAll('/garuda.png', 'https://hr-mnrh.app.sati.co.th/garuda.png');
+      .replaceAll('/kruth.png', 'https://hr-mnrh.app.sati.co.th/kruth.png');
     const full = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><title>บันทึกข้อความ</title><style>
       @font-face{font-family:'TH Sarabun IT9';src:url('https://hr-mnrh.app.sati.co.th/fonts/THSarabunIT9.ttf') format('truetype');}
       body,table,td,th,div,span,p{font-family:'TH Sarabun IT9','TH Sarabun New','TH SarabunPSK','Sarabun',sans-serif;}

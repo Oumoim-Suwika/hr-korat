@@ -19,7 +19,7 @@ export default function RequestToWork({ wardName, wardPhone, month, year, employ
   const controller = signers.find((s) => s.signerRole === 'controller');
   const approver = signers.find((s) => s.signerRole === 'approver');
 
-  const paper: React.CSSProperties = { background: '#fff', border: '1px solid #cbd5e1', borderRadius: 6, padding: '18mm 16mm', maxWidth: 800, margin: '0 auto', lineHeight: 1.7 };
+  const paper: React.CSSProperties = { background: '#fff', border: '1px solid #cbd5e1', borderRadius: 6, padding: '15mm', maxWidth: '190mm', margin: '0 auto', lineHeight: 1.6 };
 
   const body1 = isNursing
     ? `ด้วย ${wardName} ${unit.label} ขออนุมัติขึ้นปฏิบัติงานนอกเวลาราชการและวันหยุดราชการ ตามคำสั่งโรงพยาบาลมหาราชนครราชสีมา ที่ ๙๙๙/${y} ลงวันที่ ๙ ${m} ${y} เพื่อให้บริการผู้ป่วยตลอด ๒๔ ชั่วโมง`
@@ -28,7 +28,10 @@ export default function RequestToWork({ wardName, wardPhone, month, year, employ
 
   return (
     <div className="gov-form" style={paper}>
-      <div style={{ textAlign: 'center', fontWeight: 700, fontSize: 26, marginBottom: 8 }}>บันทึกข้อความ</div>
+      <div style={{ position: 'relative', minHeight: 56, marginBottom: 2 }}>
+        <img src="/kruth.png" alt="ตราครุฑ" style={{ height: 54, position: 'absolute', left: 0, top: 0 }} />
+        <div style={{ textAlign: 'center', fontWeight: 700, fontSize: 24, paddingTop: 12 }}>บันทึกข้อความ</div>
+      </div>
       <div style={{ fontSize: 15 }}>
         <div><b>ส่วนราชการ</b>&nbsp; {wardName}{isNursing ? ' กลุ่มภารกิจด้านการพยาบาล' : ' โรงพยาบาลมหาราชนครราชสีมา'}&nbsp; โทร. {toThaiDigits(wardPhone ?? '-')}</div>
         <div style={{ display: 'flex', justifyContent: 'space-between' }}>

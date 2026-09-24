@@ -25,7 +25,7 @@ export default function PrintableRoster({
     <div className="gov-form print-landscape" style={{ fontSize: 11, padding: '4mm' }}>
       {/* Header with ตราครุฑ */}
       <div style={{ textAlign: 'center', marginBottom: 4 }}>
-        <img src="/garuda.png" alt="ตราครุฑ" style={{ height: 46, margin: '0 auto 2px' }} />
+        <img src="/kruth.png" alt="ตราครุฑ" style={{ height: 46, margin: '0 auto 2px' }} />
         <div style={{ fontWeight: 700, fontSize: 15 }}>
           ตารางปฏิบัติงาน ประจำเดือน {THAI_MONTHS[month - 1]} {toThaiDigits(year)}
         </div>

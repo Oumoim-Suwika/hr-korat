@@ -22,7 +22,7 @@ export default function DailyForms({
   const wageOf = (e: Employee) => (e.baseWage || DEFAULT_DAILY_WAGE) * workedDays(e.id);
   const total = daily.reduce((s, e) => s + wageOf(e), 0);
 
-  const paper: React.CSSProperties = { background: '#fff', border: '1px solid #cbd5e1', borderRadius: 6, padding: '16mm', maxWidth: 800, margin: '0 auto', lineHeight: 1.7 };
+  const paper: React.CSSProperties = { background: '#fff', border: '1px solid #cbd5e1', borderRadius: 6, padding: '15mm', maxWidth: '190mm', margin: '0 auto', lineHeight: 1.6 };
 
   if (daily.length === 0) {
     return <div className="gov-form" style={paper}><p style={{ textAlign: 'center', color: '#64748b' }}>กลุ่มงานนี้ไม่มีลูกจ้างรายวัน/รายคาบ — เพิ่มบุคลากรที่หน้า "จัดการบุคลากร" (ประเภทการจ่าย = รายวัน) เพื่อออกฟอร์มชุดนี้</p></div>;
@@ -32,7 +32,10 @@ export default function DailyForms({
     <div className="space-y-6">
       {/* 1) memo */}
       <div className="gov-form" style={paper}>
-        <div style={{ textAlign: 'center', fontWeight: 700, fontSize: 26, marginBottom: 8 }}>บันทึกข้อความ</div>
+        <div style={{ position: 'relative', minHeight: 56, marginBottom: 2 }}>
+          <img src="/kruth.png" alt="ตราครุฑ" style={{ height: 54, position: 'absolute', left: 0, top: 0 }} />
+          <div style={{ textAlign: 'center', fontWeight: 700, fontSize: 24, paddingTop: 12 }}>บันทึกข้อความ</div>
+        </div>
         <div style={{ fontSize: 15 }}>
           <div><b>ส่วนราชการ</b>&nbsp; {wardName} โรงพยาบาลมหาราชนครราชสีมา&nbsp; โทร. {toThaiDigits(wardPhone ?? '-')}</div>
           <div><b>ที่</b>&nbsp; นม ๐๐๓๓.๑๐๑.๓/.........&nbsp;&nbsp;&nbsp;<b>วันที่</b> .................</div>
