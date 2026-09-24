@@ -118,6 +118,14 @@ CREATE TABLE IF NOT EXISTS holidays (
   name text NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS rate_settings (
+  id serial PRIMARY KEY,
+  role text NOT NULL,
+  code text NOT NULL,
+  amount double precision NOT NULL DEFAULT 0
+);
+CREATE UNIQUE INDEX IF NOT EXISTS rate_role_code_idx ON rate_settings (role, code);
+
 CREATE TABLE IF NOT EXISTS positions (
   id serial PRIMARY KEY,
   name text NOT NULL,

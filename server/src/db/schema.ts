@@ -51,6 +51,16 @@ export const staffingRequirements = pgTable('staffing_requirements', {
   count: integer('count').default(0).notNull(),
 });
 
+// ---- rate settings / อัตราค่าตอบแทน (OT rate per role/code + base salary) ----
+// One row per (role, code). code = OT code (ชot/บot/ดot/BD/OR) for the OT rate,
+// or the special code 'BASE' for the monthly base salary of that role.
+export const rateSettings = pgTable('rate_settings', {
+  id: serial('id').primaryKey(),
+  role: text('role').notNull(),      // doctor / nurse / assistant / room / support
+  code: text('code').notNull(),      // ชot / บot / ดot / BD / OR / BASE
+  amount: doublePrecision('amount').default(0).notNull(),
+}, (t) => ({ uniq: uniqueIndex('rate_role_code_idx').on(t.role, t.code) }));
+
 // ---- holidays -------------------------------------------------------------
 export const holidays = pgTable('holidays', {
   id: serial('id').primaryKey(),

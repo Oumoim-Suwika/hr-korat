@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { useRosterData, computeClaim, cellKey, downloadFile } from '../lib/useRosterData';
+import { useRosterData, computeClaim, cellKey, downloadFile, baseSalaryFor } from '../lib/useRosterData';
 import { THAI_MONTHS } from '../data';
 import { Loader2, Wallet, Download, Info } from 'lucide-react';
 
@@ -15,7 +15,9 @@ export default function PayrollView({ wardName, wardId, year, month }: { wardNam
   const rows = useMemo(() => employees.map((e) => {
     const ot = computeClaim(e, cells, days).amount;
     const worked = days.filter((d) => { const c = cells[cellKey(e.id, d)]?.normalCode; return c && c !== 'ออฟ'; }).length;
-    const base = e.paymentType === 'รายเดือน' ? (e.baseWage ?? 0) : (e.baseWage ?? 0) * worked;
+    const base = e.paymentType === 'รายเดือน'
+      ? (e.baseWage ?? baseSalaryFor(e.role))          // per-person salary, else role default
+      : (e.baseWage ?? 0) * worked;                    // daily/period wage × worked days
     return { e, base, ot, worked, net: base + ot };
   }), [employees, cells, days]);
 
@@ -40,7 +42,7 @@ export default function PayrollView({ wardName, wardId, year, month }: { wardNam
 
       <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-sm text-amber-700">
         <Info className="w-4 h-4 mt-0.5 shrink-0" />
-        <span>หน้านี้เป็น <b>พรีวิว</b> — รวม OT จากตารางเวรจริง + ค่าจ้างฐาน ส่วน <b>เงินเดือนประจำ</b> ยังไม่เชื่อมระบบจ่าย/บัญชีกลาง (พร้อมเชื่อมเมื่อได้โครงสร้างเงินเดือนจาก HR/การเงิน)</span>
+        <span>ยอด OT คำนวณจากตารางเวรจริง × <b>อัตราค่าตอบแทน</b> ที่การเงินตั้งไว้ · เงินเดือนฐานใช้ค่ารายบุคคล (ถ้ามี) หรือค่าตั้งต้นตามตำแหน่งจากหน้า “อัตราค่าตอบแทน &amp; เงินเดือน” · <b>การจ่ายจริง</b>ยังไม่เชื่อมบัญชีกลาง/ธนาคาร</span>
       </div>
 
       <div className="grid grid-cols-3 gap-3">

@@ -7,11 +7,45 @@ export const cellKey = (empId: number, day: number) => `${empId}-${day}`;
 
 const OT_CODES = new Set(['ชot', 'บot', 'ดot', 'BD', 'OR']);
 
-/** Reimbursement rate for a role+shiftcode (falls back to nurse rates / 0). */
+// Reimbursement/OT rate config — hydrated from the backend (rate_settings) at
+// app start via applyRateSettings(), so finance can edit rates and have them
+// flow to OT forms, OT earnings, reconcile, and payroll. Defaults come from
+// data.ts until the server config loads.
+const _rateTable: Record<string, Record<string, number>> = JSON.parse(JSON.stringify(DEFAULT_OT_SETTINGS.rates));
+const _baseSalary: Record<string, number> = { doctor: 0, nurse: 0, assistant: 0, room: 0, support: 0 };
+
+/** Reimbursement/OT rate for a role+shiftcode (falls back to nurse rates / 0). */
 export function rateFor(role: string, code: string): number {
-  const rates: any = DEFAULT_OT_SETTINGS.rates;
-  const table = rates[role] ?? rates.nurse;
+  const table = _rateTable[role] ?? _rateTable.nurse;
   return table?.[code] ?? 0;
+}
+
+/** Monthly base salary configured for a role (0 if unset). */
+export function baseSalaryFor(role: string): number {
+  return _baseSalary[role] ?? 0;
+}
+
+/** Apply rate settings fetched from the backend into the in-memory table. */
+export function applyRateSettings(items: { role: string; code: string; amount: number }[]): void {
+  for (const it of items) {
+    if (it.code === 'BASE') _baseSalary[it.role] = it.amount;
+    else { (_rateTable[it.role] ||= {})[it.code] = it.amount; }
+  }
+}
+
+/** OT codes and roles exposed to the finance rate-settings editor. */
+export const RATE_OT_CODES = ['ชot', 'บot', 'ดot', 'BD', 'OR'] as const;
+export const RATE_ROLES: [string, string][] = [
+  ['doctor', 'แพทย์'], ['nurse', 'พยาบาลวิชาชีพ'], ['assistant', 'ผู้ช่วยพยาบาล/ผู้ช่วยเหลือ'], ['room', 'ห้องผ่าตัด'], ['support', 'สายสนับสนุน'],
+];
+/** Read the current in-memory rates as flat rows (for prefilling the editor). */
+export function currentRateRows(): { role: string; code: string; amount: number }[] {
+  const rows: { role: string; code: string; amount: number }[] = [];
+  for (const [role] of RATE_ROLES) {
+    for (const code of RATE_OT_CODES) rows.push({ role, code, amount: rateFor(role, code) });
+    rows.push({ role, code: 'BASE', amount: baseSalaryFor(role) });
+  }
+  return rows;
 }
 
 export interface Claim {

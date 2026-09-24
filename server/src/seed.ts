@@ -62,6 +62,27 @@ export async function seed() {
     await db.insert(schema.shiftTypes).values(s).onConflictDoNothing({ target: schema.shiftTypes.code });
   }
 
+  // rate settings — OT rate per role/code + monthly base salary (code 'BASE').
+  // Editable by finance/admin in the "อัตราค่าตอบแทน & เงินเดือน" page; drives
+  // OT reimbursement forms, OT earnings, and payroll base.
+  const rateN = await db.select({ n: sql<number>`count(*)` }).from(schema.rateSettings);
+  if (Number(rateN[0].n) === 0) {
+    const OT_RATE_DEFAULTS: Record<string, Record<string, number>> = {
+      doctor: { 'ชot': 1200, 'บot': 1500, 'ดot': 1800, 'OR': 2000, 'BD': 800 },
+      nurse: { 'ชot': 720, 'บot': 720, 'ดot': 720, 'OR': 900, 'BD': 400 },
+      assistant: { 'ชot': 430, 'บot': 430, 'ดot': 430, 'OR': 500, 'BD': 200 },
+      room: { 'ชot': 1000, 'บot': 1200, 'ดot': 1500, 'OR': 1800, 'BD': 600 },
+      support: { 'ชot': 420, 'บot': 420, 'ดot': 420, 'OR': 500, 'BD': 300 },
+    };
+    const BASE_SALARY_DEFAULTS: Record<string, number> = { doctor: 52000, nurse: 28000, assistant: 16000, room: 19000, support: 15000 };
+    const rateVals: any[] = [];
+    for (const [role, codes] of Object.entries(OT_RATE_DEFAULTS)) {
+      for (const [code, amount] of Object.entries(codes)) rateVals.push({ role, code, amount });
+      rateVals.push({ role, code: 'BASE', amount: BASE_SALARY_DEFAULTS[role] ?? 0 });
+    }
+    await db.insert(schema.rateSettings).values(rateVals).onConflictDoNothing({ target: [schema.rateSettings.role, schema.rateSettings.code] });
+  }
+
   // positions
   const positionNames: { name: string; line: 'แพทย์' | 'พยาบาล' | 'สนับสนุน' }[] = [
     { name: 'นักวิชาการเงินและบัญชี', line: 'สนับสนุน' },

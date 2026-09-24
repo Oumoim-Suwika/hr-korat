@@ -134,6 +134,11 @@ export const api = {
   // shift types upsert
   upsertShiftType: (s: any) => request<{ shiftType: ShiftType }>('POST', '/api/shift-types', s).then((r) => r.shiftType),
 
+  // rate settings (OT rate per role/code + base salary)
+  getRateSettings: () => request<{ rates: { role: string; code: string; amount: number }[] }>('GET', '/api/rate-settings').then((r) => r.rates),
+  setRateSettings: (items: { role: string; code: string; amount: number }[]) =>
+    request<{ ok: boolean }>('PUT', '/api/rate-settings', { items }),
+
   // staffing
   getStaffing: (wardId: number) => request<{ staffing: any[] }>('GET', `/api/staffing?wardId=${wardId}`).then((r) => r.staffing),
   setStaffing: (wardId: number, items: { level: string; shiftCode: string; count: number }[]) =>

@@ -6,7 +6,7 @@ import { THAI_MONTHS } from '../data';
 import {
   LayoutDashboard, Calendar, CalendarClock, Users, Building2, Users2, Clock, CalendarDays,
   ArrowLeftRight, CalendarX, Send, DollarSign, FileText, BarChart3, ScrollText, ShieldCheck,
-  Settings as SettingsIcon, LogOut, Loader2, Menu, History, Wallet, Scale, CalendarRange,
+  Settings as SettingsIcon, LogOut, Loader2, Menu, History, Wallet, Scale, CalendarRange, Coins,
 } from 'lucide-react';
 
 import DashboardView from './DashboardView';
@@ -29,11 +29,13 @@ import UsersView from './UsersView';
 import SettingsView from './SettingsView';
 import ComplianceView from './ComplianceView';
 import AnnualPlanView from './AnnualPlanView';
+import RatesView from './RatesView';
+import { applyRateSettings } from '../lib/useRosterData';
 
 type TabKey =
   | 'dashboard' | 'schedule' | 'daily' | 'personnel' | 'wards' | 'staffing' | 'shifts'
   | 'holidays' | 'swap' | 'leave' | 'ot' | 'finance' | 'reconcile' | 'payroll' | 'documents' | 'history' | 'reports'
-  | 'compliance' | 'annual' | 'audit' | 'users' | 'settings';
+  | 'compliance' | 'annual' | 'rates' | 'audit' | 'users' | 'settings';
 
 const ALL: UserRole[] = ['staff', 'supervisor', 'finance', 'admin'];
 const SUP: UserRole[] = ['supervisor', 'admin'];
@@ -61,6 +63,7 @@ const SECTIONS: NavSection[] = [
     { key: 'finance', label: 'การเงิน & เบิกจ่าย', icon: DollarSign, roles: FIN },
     { key: 'reconcile', label: 'ตรวจสอบเวร↔เบิก', icon: ShieldCheck, roles: FIN },
     { key: 'payroll', label: 'เงินเดือน (Payroll)', icon: Wallet, roles: FIN },
+    { key: 'rates', label: 'อัตราค่าตอบแทน & เงินเดือน', icon: Coins, roles: FIN },
     { key: 'documents', label: 'ฟอร์มตั้งเบิก (ครุฑ)', icon: FileText, roles: ALL },
     { key: 'history', label: 'ประวัติฟอร์ม', icon: History, roles: [...SUP, 'finance'] },
     { key: 'reports', label: 'รายงาน & วิเคราะห์', icon: BarChart3, roles: [...SUP, 'finance'] },
@@ -100,6 +103,7 @@ const HEADER_FILTERS: Record<TabKey, { ward?: boolean; month?: boolean; year?: b
   reports: { month: true, year: true },
   compliance: { ward: true, month: true, year: true },
   annual: { ward: true, year: true },
+  rates: {},
   audit: {},
   users: {},
   settings: {},
@@ -117,7 +121,12 @@ export default function AppShell() {
 
   useEffect(() => {
     (async () => {
-      try { const w = await api.wards(); setWards(w); setWardId((c) => c ?? (w.find((x) => x.code === 'ICU')?.id) ?? w[0]?.id ?? null); }
+      try {
+        const [w, rates] = await Promise.all([api.wards(), api.getRateSettings().catch(() => [])]);
+        applyRateSettings(rates);
+        setWards(w);
+        setWardId((c) => c ?? (w.find((x) => x.code === 'ICU')?.id) ?? w[0]?.id ?? null);
+      }
       finally { setLoading(false); }
     })();
   }, []);
@@ -153,6 +162,7 @@ export default function AppShell() {
       case 'reports': return <ReportsView year={year} month={month} />;
       case 'compliance': return <ComplianceView wardName={wardName} wardId={wardId} year={year} month={month} />;
       case 'annual': return <AnnualPlanView wardName={wardName} wardId={wardId} year={year} role={role} />;
+      case 'rates': return <RatesView role={role} />;
       case 'audit': return <AuditView />;
       case 'users': return <UsersView />;
       case 'settings': return <SettingsView />;

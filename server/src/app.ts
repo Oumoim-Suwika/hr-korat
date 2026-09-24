@@ -380,6 +380,23 @@ app.put('/api/staffing', requireAuth, requireRole('supervisor', 'admin'), async 
   return c.json({ ok: true, count: p.data.items.length });
 });
 
+// ---- rate settings (OT rate per role/code + base salary) --------------------
+app.get('/api/rate-settings', requireAuth, async (c) => {
+  const rows = await db.select().from(schema.rateSettings);
+  return c.json({ rates: rows });
+});
+app.put('/api/rate-settings', requireAuth, requireRole('finance', 'admin'), async (c) => {
+  const b = await c.req.json().catch(() => ({}));
+  const p = z.object({ items: z.array(z.object({ role: z.string().min(1), code: z.string().min(1), amount: z.number().min(0) })) }).safeParse(b);
+  if (!p.success) return c.json({ error: 'invalid_input' }, 400);
+  for (const it of p.data.items) {
+    await db.insert(schema.rateSettings).values(it)
+      .onConflictDoUpdate({ target: [schema.rateSettings.role, schema.rateSettings.code], set: { amount: it.amount } });
+  }
+  await audit(getUser(c).id, 'rate_settings', null, 'update', { count: p.data.items.length });
+  return c.json({ ok: true, count: p.data.items.length });
+});
+
 // ---- holidays ---------------------------------------------------------------
 app.get('/api/holidays', requireAuth, async (c) => {
   const year = Number(c.req.query('year'));
