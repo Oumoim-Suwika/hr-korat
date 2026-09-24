@@ -47,6 +47,7 @@ export default function ScheduleView({ role, wards, wardId, year, month }: Props
   const [toast, setToast] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
   const [workingDaysInput, setWorkingDaysInput] = useState(0);
   const [staffing, setStaffing] = useState<StaffingItem[]>([]);
+  const [shiftHours, setShiftHours] = useState<{ code: string; startTime: string; endTime: string }[]>([]);
   const [schedReport, setSchedReport] = useState<ScheduleResult | null>(null);
   const [seniorYears, setSeniorYears] = useState(3);
   const [seniorPerShift, setSeniorPerShift] = useState(1);
@@ -69,19 +70,21 @@ export default function ScheduleView({ role, wards, wardId, year, month }: Props
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [emps, sts, cal, ros, all, stf] = await Promise.all([
+      const [emps, sts, cal, ros, all, stf, wht] = await Promise.all([
         api.employees(wardId),
         api.shiftTypes(),
         api.getWorkingCalendar(wardId, year, month),
         api.getRoster(wardId, year, month),
         api.allEmployees(),
         api.getStaffing(wardId),
+        api.getWardShiftTimes(wardId),
       ]);
       setEmployees(emps);
       setShiftTypes(sts);
       setCalendar(cal);
       setAllEmployees(all);
       setStaffing(stf as StaffingItem[]);
+      setShiftHours(wht);
       setSchedReport(null);
       setWorkingDaysInput(cal?.workingDays ?? 0);
       setRoster(ros.roster);
@@ -308,6 +311,14 @@ export default function ScheduleView({ role, wards, wardId, year, month }: Props
       )}
       {externalIds.length > 0 && <p className="text-xs text-amber-600 no-print">* แถวสีเหลือง = คนนอกหน่วย (ลงได้เฉพาะ OT ไม่นับวันทำการ)</p>}
 
+      {shiftHours.length > 0 && (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 no-print">
+          <span className="font-medium text-slate-600">เวลาปฏิบัติงานของหน่วยนี้:</span>
+          {['ช', 'บ', 'ด'].map((cd) => { const h = shiftHours.find((x) => x.code === cd); return <span key={cd} className="text-slate-600"><b className="text-[#0F3575]">{cd}</b> {h ? `${h.startTime}-${h.endTime} น.` : '—'}</span>; })}
+          <span className="text-slate-400 ml-auto">ตั้งค่าได้ที่เมนู “เวลาปฏิบัติงาน (ต่อหน่วย)”</span>
+        </div>
+      )}
+
       {toast && <div className={`text-sm rounded-lg px-3 py-2 ${toast.kind === 'ok' ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>{toast.msg}</div>}
 
       {/* AI scheduling config + coverage report */}
@@ -465,7 +476,7 @@ export default function ScheduleView({ role, wards, wardId, year, month }: Props
         <PrintableRoster
           wardName={wardName} month={month} year={year} ceYear={ceYear} days={days}
           employees={rows} cells={cells} signers={signers} note={noteText || null}
-          cleared={roster?.status === 'approved'}
+          cleared={roster?.status === 'approved'} hours={shiftHours}
         />
       </div>
     </div>

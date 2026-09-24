@@ -427,6 +427,24 @@ app.put('/api/rate-settings', requireAuth, requireRole('finance', 'admin'), asyn
   return c.json({ ok: true, count: p.data.items.length });
 });
 
+// ---- per-ward shift times ---------------------------------------------------
+app.get('/api/ward-shift-times', requireAuth, async (c) => {
+  const wardId = Number(c.req.query('wardId'));
+  const rows = await db.select().from(schema.wardShiftTimes).where(eq(schema.wardShiftTimes.wardId, wardId));
+  return c.json({ times: rows });
+});
+app.put('/api/ward-shift-times', requireAuth, requireRole('supervisor', 'admin'), async (c) => {
+  const b = await c.req.json().catch(() => ({}));
+  const p = z.object({ wardId: z.number(), items: z.array(z.object({ code: z.string().min(1), startTime: z.string().min(1), endTime: z.string().min(1) })) }).safeParse(b);
+  if (!p.success) return c.json({ error: 'invalid_input' }, 400);
+  for (const it of p.data.items) {
+    await db.insert(schema.wardShiftTimes).values({ wardId: p.data.wardId, ...it })
+      .onConflictDoUpdate({ target: [schema.wardShiftTimes.wardId, schema.wardShiftTimes.code], set: { startTime: it.startTime, endTime: it.endTime } });
+  }
+  await audit(getUser(c).id, 'ward_shift_times', String(p.data.wardId), 'set', { count: p.data.items.length });
+  return c.json({ ok: true });
+});
+
 // ---- holidays ---------------------------------------------------------------
 app.get('/api/holidays', requireAuth, async (c) => {
   const year = Number(c.req.query('year'));

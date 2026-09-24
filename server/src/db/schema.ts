@@ -61,6 +61,18 @@ export const rateSettings = pgTable('rate_settings', {
   amount: doublePrecision('amount').default(0).notNull(),
 }, (t) => ({ uniq: uniqueIndex('rate_role_code_idx').on(t.role, t.code) }));
 
+// ---- per-ward shift times / เวลาปฏิบัติงานต่อหอผู้ป่วย-กลุ่มงาน ---------------
+// Same base code (ช/บ/ด) but different clock times per ward, e.g.
+//   ช งานบริการ 08.00-16.00  vs  ช สำนักงาน 08.30-16.30.
+// Stored as display strings ("08.00") to match Thai document convention.
+export const wardShiftTimes = pgTable('ward_shift_times', {
+  id: serial('id').primaryKey(),
+  wardId: integer('ward_id').references(() => wards.id, { onDelete: 'cascade' }).notNull(),
+  code: text('code').notNull(),           // ช / บ / ด
+  startTime: text('start_time').notNull(), // "08.00"
+  endTime: text('end_time').notNull(),     // "16.00"
+}, (t) => ({ uniq: uniqueIndex('ward_shift_time_idx').on(t.wardId, t.code) }));
+
 // ---- holidays -------------------------------------------------------------
 export const holidays = pgTable('holidays', {
   id: serial('id').primaryKey(),

@@ -30,12 +30,13 @@ import SettingsView from './SettingsView';
 import ComplianceView from './ComplianceView';
 import AnnualPlanView from './AnnualPlanView';
 import RatesView from './RatesView';
+import WardHoursView from './WardHoursView';
 import { applyRateSettings } from '../lib/useRosterData';
 
 type TabKey =
   | 'dashboard' | 'schedule' | 'daily' | 'personnel' | 'wards' | 'staffing' | 'shifts'
   | 'holidays' | 'swap' | 'leave' | 'ot' | 'finance' | 'reconcile' | 'payroll' | 'documents' | 'history' | 'reports'
-  | 'compliance' | 'annual' | 'rates' | 'audit' | 'users' | 'settings';
+  | 'compliance' | 'annual' | 'rates' | 'wardhours' | 'audit' | 'users' | 'settings';
 
 const ALL: UserRole[] = ['staff', 'supervisor', 'finance', 'admin'];
 const SUP: UserRole[] = ['supervisor', 'admin'];
@@ -51,7 +52,8 @@ const SECTIONS: NavSection[] = [
     { key: 'daily', label: 'ปฏิทินเวร', icon: CalendarClock, roles: ALL },
     { key: 'staffing', label: 'ความต้องการพนักงาน', icon: Users2, roles: SUP },
     { key: 'compliance', label: 'ตรวจกฎหมายแรงงาน', icon: Scale, roles: [...SUP, 'finance'] },
-    { key: 'shifts', label: 'ตั้งค่าเวร', icon: Clock, roles: SUP },
+    { key: 'shifts', label: 'ตั้งค่าเวร (รหัสกะ)', icon: Clock, roles: SUP },
+    { key: 'wardhours', label: 'เวลาปฏิบัติงาน (ต่อหน่วย)', icon: Clock, roles: SUP },
     { key: 'holidays', label: 'วันหยุด', icon: CalendarDays, roles: ALL },
   ]},
   { title: 'คำขอ', items: [
@@ -104,6 +106,7 @@ const HEADER_FILTERS: Record<TabKey, { ward?: boolean; month?: boolean; year?: b
   compliance: { ward: true, month: true, year: true },
   annual: { ward: true, year: true },
   rates: {},
+  wardhours: { ward: true },
   audit: {},
   users: {},
   settings: {},
@@ -163,6 +166,7 @@ export default function AppShell() {
       case 'compliance': return <ComplianceView wardName={wardName} wardId={wardId} year={year} month={month} />;
       case 'annual': return <AnnualPlanView wardName={wardName} wardId={wardId} year={year} role={role} />;
       case 'rates': return <RatesView role={role} />;
+      case 'wardhours': return <WardHoursView wardName={wardName} wardId={wardId} role={role} />;
       case 'audit': return <AuditView />;
       case 'users': return <UsersView />;
       case 'settings': return <SettingsView />;

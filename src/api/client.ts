@@ -139,6 +139,11 @@ export const api = {
   setRateSettings: (items: { role: string; code: string; amount: number }[]) =>
     request<{ ok: boolean }>('PUT', '/api/rate-settings', { items }),
 
+  // per-ward shift times
+  getWardShiftTimes: (wardId: number) => request<{ times: { code: string; startTime: string; endTime: string }[] }>('GET', `/api/ward-shift-times?wardId=${wardId}`).then((r) => r.times),
+  setWardShiftTimes: (wardId: number, items: { code: string; startTime: string; endTime: string }[]) =>
+    request<{ ok: boolean }>('PUT', '/api/ward-shift-times', { wardId, items }),
+
   // staffing
   getStaffing: (wardId: number) => request<{ staffing: any[] }>('GET', `/api/staffing?wardId=${wardId}`).then((r) => r.staffing),
   setStaffing: (wardId: number, items: { level: string; shiftCode: string; count: number }[]) =>

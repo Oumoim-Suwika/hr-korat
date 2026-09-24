@@ -126,6 +126,15 @@ CREATE TABLE IF NOT EXISTS rate_settings (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS rate_role_code_idx ON rate_settings (role, code);
 
+CREATE TABLE IF NOT EXISTS ward_shift_times (
+  id serial PRIMARY KEY,
+  ward_id integer NOT NULL REFERENCES wards(id) ON DELETE CASCADE,
+  code text NOT NULL,
+  start_time text NOT NULL,
+  end_time text NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS ward_shift_time_idx ON ward_shift_times (ward_id, code);
+
 CREATE TABLE IF NOT EXISTS positions (
   id serial PRIMARY KEY,
   name text NOT NULL,

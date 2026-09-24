@@ -291,6 +291,20 @@ export async function seed() {
   const holToAdd = HOLIDAYS_2569.filter(([d]) => !haveHol.has(d)).map(([date, name]) => ({ year: SY2, date, name }));
   if (holToAdd.length) await db.insert(schema.holidays).values(holToAdd);
 
+  // per-ward shift times — service units start 08.00, office units 08.30 (demo
+  // of the "แต่ละหอผู้ป่วย/กลุ่มงานไม่เหมือนกัน" case). Insert-if-missing per ward+code.
+  const SERVICE_WARDS = new Set(['ICU', 'ER', 'OR', 'A01', 'M01']);
+  for (const w of wardRows as any[]) {
+    const svc = SERVICE_WARDS.has(w.code);
+    const defs: [string, string, string][] = svc
+      ? [['ช', '08.00', '16.00'], ['บ', '16.00', '24.00'], ['ด', '00.00', '08.00']]
+      : [['ช', '08.30', '16.30'], ['บ', '16.30', '20.30'], ['ด', '00.00', '08.00']];
+    for (const [code, startTime, endTime] of defs) {
+      await db.insert(schema.wardShiftTimes).values({ wardId: w.id, code, startTime, endTime })
+        .onConflictDoNothing({ target: [schema.wardShiftTimes.wardId, schema.wardShiftTimes.code] });
+    }
+  }
+
   // ---- daily-wage employee in U01 (for รายวัน forms) — idempotent ----------
   const u01b = wardByCode['U01'];
   if (u01b) {

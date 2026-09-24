@@ -12,15 +12,20 @@ const key = (empId: number, day: number) => `${empId}-${day}`;
  * Rendered hidden on screen; shown only when printing (see .print-sheet CSS).
  * Print via window.print() -> "Save as PDF".
  */
+interface ShiftTime { code: string; startTime: string; endTime: string; }
+
 export default function PrintableRoster({
-  wardName, month, year, ceYear, days, employees, cells, signers, note, cleared = false,
+  wardName, month, year, ceYear, days, employees, cells, signers, note, cleared = false, hours,
 }: {
   wardName: string; month: number; year: number; ceYear: number; days: number[];
   employees: Employee[]; cells: CellMap; signers: RosterSigner[]; note?: string | null;
-  cleared?: boolean;
+  cleared?: boolean; hours?: ShiftTime[];
 }) {
   const controller = signers.find((s) => s.signerRole === 'controller');
   const approver = signers.find((s) => s.signerRole === 'approver');
+  // per-ward configured times (fallback to standard ราชการ hours)
+  const ht = (code: string, fb: string) => { const h = hours?.find((x) => x.code === code); return h ? `${h.startTime}-${h.endTime}` : fb; };
+  const chTime = ht('ช', '08.30-16.30'), baTime = ht('บ', '16.30-20.30'), duTime = ht('ด', '00.00-08.00');
 
   return (
     <div className="gov-form print-fit" style={{ fontSize: 9, padding: '4mm' }}>
@@ -83,9 +88,11 @@ export default function PrintableRoster({
 
       {/* Legend */}
       <div style={{ marginTop: 4, fontSize: 10, display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-        <span><b>ช</b> = ปฏิบัติงานวันทำการในเวลาราชการ 08.30-16.30 น.</span>
-        <span><b>BD</b> = ปฏิบัติงานนอกเวลาราชการ (บ่ายดึก) 16.30-20.30 น.</span>
-        <span><b>ชot</b> = ปฏิบัติงานวันหยุดราชการ 08.30-16.30 น.</span>
+        <span><b>ช</b> = เวรเช้า (ในเวลาราชการ) {chTime} น.</span>
+        <span><b>บ</b> = เวรบ่าย {baTime} น.</span>
+        <span><b>ด</b> = เวรดึก {duTime} น.</span>
+        <span><b>ชot</b> = ปฏิบัติงานวันหยุดราชการ {chTime} น.</span>
+        <span><b>BD</b> = เวรเสริมบ่ายดึก 16.30-20.30 น.</span>
         <span><b>ออฟ</b> = วันหยุด</span>
       </div>
       {note && <div style={{ marginTop: 2, fontSize: 10 }}>หมายเหตุ : {note}</div>}
