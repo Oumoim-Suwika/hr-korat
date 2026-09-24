@@ -13,11 +13,21 @@ const OT_CODES = new Set(['ชot', 'บot', 'ดot', 'BD', 'OR']);
 // data.ts until the server config loads.
 const _rateTable: Record<string, Record<string, number>> = JSON.parse(JSON.stringify(DEFAULT_OT_SETTINGS.rates));
 const _baseSalary: Record<string, number> = { doctor: 0, nurse: 0, assistant: 0, room: 0, support: 0 };
+// per-shift flat rate (from ตั้งค่าเวร). When >0 it OVERRIDES the per-position
+// rate (ค่าตอบแทนมาจากเรทของแต่ละกะ); 0 = ใช้เรตตามตำแหน่ง.
+const _shiftRate: Record<string, number> = {};
 
-/** Reimbursement/OT rate for a role+shiftcode (falls back to nurse rates / 0). */
+/** Reimbursement/OT rate for a role+shiftcode. Per-shift rate wins if set. */
 export function rateFor(role: string, code: string): number {
+  const sr = _shiftRate[code];
+  if (sr && sr > 0) return sr;
   const table = _rateTable[role] ?? _rateTable.nurse;
   return table?.[code] ?? 0;
+}
+
+/** Load per-shift flat rates from shift types (called at app start). */
+export function applyShiftRates(shiftTypes: { code: string; rate?: number | null }[]): void {
+  for (const s of shiftTypes) if (s.rate != null) _shiftRate[s.code] = s.rate;
 }
 
 /** Monthly base salary configured for a role (0 if unset). */

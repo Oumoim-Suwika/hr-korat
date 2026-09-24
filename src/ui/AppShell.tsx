@@ -35,7 +35,7 @@ import WardHoursView from './WardHoursView';
 import TimeScanView from './TimeScanView';
 import ORCasesView from './ORCasesView';
 import MyScheduleView from './MyScheduleView';
-import { applyRateSettings } from '../lib/useRosterData';
+import { applyRateSettings, applyShiftRates } from '../lib/useRosterData';
 
 type TabKey =
   | 'dashboard' | 'schedule' | 'daily' | 'personnel' | 'wards' | 'staffing' | 'shifts'
@@ -135,8 +135,9 @@ export default function AppShell() {
   useEffect(() => {
     (async () => {
       try {
-        const [w, rates] = await Promise.all([api.wards(), api.getRateSettings().catch(() => [])]);
+        const [w, rates, sts] = await Promise.all([api.wards(), api.getRateSettings().catch(() => []), api.shiftTypes().catch(() => [])]);
         applyRateSettings(rates);
+        applyShiftRates(sts as any);
         setWards(w);
         setWardId((c) => c ?? (w.find((x) => x.code === 'ICU')?.id) ?? w[0]?.id ?? null);
       }

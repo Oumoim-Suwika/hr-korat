@@ -225,6 +225,8 @@ CREATE TABLE IF NOT EXISTS shift_types (
   category text,
   sort_order integer NOT NULL DEFAULT 0
 );
+ALTER TABLE shift_types ADD COLUMN IF NOT EXISTS rate double precision NOT NULL DEFAULT 0;
+ALTER TABLE shift_types ADD COLUMN IF NOT EXISTS levels text;
 
 CREATE TABLE IF NOT EXISTS working_calendars (
   id serial PRIMARY KEY,

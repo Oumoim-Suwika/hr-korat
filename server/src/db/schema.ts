@@ -171,6 +171,8 @@ export const shiftTypes = pgTable('shift_types', {
   isOt: boolean('is_ot').default(false).notNull(),
   isWork: boolean('is_work').default(true).notNull(),  // false for ออฟ/O/V/T
   category: text('category'),              // ช / บ / ด / BD / OR (base group)
+  rate: doublePrecision('rate').default(0).notNull(),  // ค่าตอบแทนต่อเวร (flat) — 0 = ใช้เรตตามตำแหน่ง
+  levels: text('levels'),                  // ระดับที่ใช้กะนี้ เช่น "L,M,S,S2"
   sortOrder: integer('sort_order').default(0).notNull(),
 });
 

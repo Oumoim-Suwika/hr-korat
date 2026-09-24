@@ -62,6 +62,16 @@ export async function seed() {
     await db.insert(schema.shiftTypes).values(s).onConflictDoNothing({ target: schema.shiftTypes.code });
   }
 
+  // shift-type levels (informational, matches jaadwen "ระดับที่ใช้"); rate stays 0
+  // (= use per-position rate) until finance sets a flat per-shift rate.
+  const LEVELS_BY_CODE: Record<string, string> = {
+    'ช': 'L,M,S,S2', 'บ': 'L,M,S,S2', 'ด': 'L,M,S,S2',
+    'ชot': 'L,M,S,S2', 'บot': 'L,M,S,S2', 'ดot': 'L,M,S,S2', 'BD': 'M,S,S2', 'OR': 'L,M,S',
+  };
+  for (const [code, levels] of Object.entries(LEVELS_BY_CODE)) {
+    await db.execute(sql`UPDATE shift_types SET levels = ${levels} WHERE code = ${code} AND levels IS NULL`);
+  }
+
   // rate settings — OT rate per role/code + monthly base salary (code 'BASE').
   // Editable by finance/admin in the "อัตราค่าตอบแทน & เงินเดือน" page; drives
   // OT reimbursement forms, OT earnings, and payroll base.

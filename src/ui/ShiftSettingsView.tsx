@@ -21,7 +21,7 @@ function toNum(t: string): number | null {
 }
 const mins = (h?: number | null) => (h == null ? null : Math.floor(h) * 60 + Math.round((h % 1) * 100));
 
-interface Row { code: string; name: string; start: string; end: string; hours: number; isOt: boolean; isWork: boolean; category?: string | null; sortOrder: number; }
+interface Row { code: string; name: string; start: string; end: string; hours: number; rate: number; levels: string; isOt: boolean; isWork: boolean; category?: string | null; sortOrder: number; }
 
 export default function ShiftSettingsView({ role }: { role: UserRole }) {
   const canEdit = role === 'supervisor' || role === 'admin';
@@ -35,7 +35,7 @@ export default function ShiftSettingsView({ role }: { role: UserRole }) {
     setLoading(true);
     api.shiftTypes().then((sts) => setRows(sts.map((s: ShiftType) => ({
       code: s.code, name: s.name, start: toText((s as any).startHour), end: toText((s as any).endHour),
-      hours: s.hours, isOt: s.isOt, isWork: s.isWork, category: (s as any).category ?? null, sortOrder: s.sortOrder,
+      hours: s.hours, rate: (s as any).rate ?? 0, levels: (s as any).levels ?? '', isOt: s.isOt, isWork: s.isWork, category: (s as any).category ?? null, sortOrder: s.sortOrder,
     })))).finally(() => setLoading(false));
   };
   useEffect(load, []);
@@ -57,8 +57,9 @@ export default function ShiftSettingsView({ role }: { role: UserRole }) {
         await api.upsertShiftType({
           code: r.code, name: r.name, hours: Number(r.hours) || 0,
           startHour: r.isWork ? toNum(r.start) : null, endHour: r.isWork ? toNum(r.end) : null,
+          rate: Number(r.rate) || 0, levels: r.levels || null,
           isOt: r.isOt, isWork: r.isWork, category: r.category ?? null, sortOrder: r.sortOrder,
-        });
+        } as any);
       }
       flash('บันทึกเวลากะทั้งหมดแล้ว — มีผลกับการจัดเวรและการแสดงผลเอกสาร');
       load();
@@ -89,6 +90,8 @@ export default function ShiftSettingsView({ role }: { role: UserRole }) {
               <th className="px-3 py-2 font-medium text-center">เริ่ม</th>
               <th className="px-3 py-2 font-medium text-center">สิ้นสุด</th>
               <th className="px-3 py-2 font-medium text-center">ชม.</th>
+              <th className="px-3 py-2 font-medium text-center">ค่าตอบแทน (บาท)</th>
+              <th className="px-3 py-2 font-medium text-center">ระดับที่ใช้</th>
               <th className="px-3 py-2 font-medium text-center">ช่วงเวลา (24 ชม.)</th>
               <th className="px-3 py-2 font-medium text-center">ประเภท</th>
             </tr></thead>
@@ -106,6 +109,8 @@ export default function ShiftSettingsView({ role }: { role: UserRole }) {
                     <td className="px-3 py-2 text-center">{r.isWork ? <input value={r.start} disabled={!canEdit} onChange={(e) => patch(r.code, { start: e.target.value })} maxLength={5} placeholder="08.00" className={`${inp} w-20`} /> : <span className="text-slate-400">—</span>}</td>
                     <td className="px-3 py-2 text-center">{r.isWork ? <input value={r.end} disabled={!canEdit} onChange={(e) => patch(r.code, { end: e.target.value })} maxLength={5} placeholder="16.00" className={`${inp} w-20`} /> : <span className="text-slate-400">—</span>}</td>
                     <td className="px-3 py-2 text-center"><input type="number" min={0} step={0.5} value={r.hours} disabled={!canEdit} onChange={(e) => patch(r.code, { hours: Number(e.target.value) })} className={`${inp} w-16`} /></td>
+                    <td className="px-3 py-2 text-center">{r.isWork ? <input type="number" min={0} value={r.rate} disabled={!canEdit} onChange={(e) => patch(r.code, { rate: Number(e.target.value) })} className={`${inp} w-24`} title="0 = ใช้เรตตามตำแหน่ง" /> : <span className="text-slate-400">—</span>}</td>
+                    <td className="px-3 py-2 text-center"><input value={r.levels} disabled={!canEdit} onChange={(e) => patch(r.code, { levels: e.target.value })} placeholder="L,M,S,S2" className={`${inp} w-28`} /></td>
                     <td className="px-3 py-2" style={{ minWidth: 160 }}>
                       {r.isWork ? (
                         <div className="relative h-4 bg-slate-100 rounded">
@@ -125,7 +130,7 @@ export default function ShiftSettingsView({ role }: { role: UserRole }) {
           </table>
         </div>
       )}
-      <p className="text-xs text-slate-400">* การเปลี่ยนประเภท (ปกติ/OT) กระทบการคำนวณค่าตอบแทน จึงล็อกไว้ · ต้องการเพิ่ม/เปลี่ยนประเภทกะ แจ้งผู้ดูแลระบบ</p>
+      <p className="text-xs text-slate-400">* <b>ค่าตอบแทน (บาท)</b> = เรตต่อเวรของกะนั้น ใช้เหมือนกันทุกคน · ใส่ <b>0</b> = ใช้เรตตามตำแหน่งจากหน้า “อัตราค่าตอบแทน &amp; เงินเดือน” · การเปลี่ยนประเภท (ปกติ/OT) ล็อกไว้เพื่อไม่ให้กระทบการคิดเงิน</p>
     </div>
   );
 }

@@ -56,6 +56,7 @@ export interface Employee {
 export interface ShiftType {
   code: string; name: string; hours: number; isOt: boolean; isWork: boolean;
   category?: string | null; sortOrder: number; startHour?: number | null; endHour?: number | null;
+  rate?: number | null; levels?: string | null;
 }
 export interface WorkingCalendar {
   id: number; wardId: number; year: number; month: number;
