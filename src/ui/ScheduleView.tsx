@@ -419,11 +419,13 @@ export default function ScheduleView({ role, wards, wardId, year, month }: Props
         </div>
       )}
 
-      {/* Hidden on screen; rendered only when printing (ตราครุฑ government form, landscape) */}
+      {/* Hidden on screen; rendered only when printing (ตราครุฑ government form, A4 portrait).
+          An approved roster prints as the "cleared" version (label + sign-off box). */}
       <div className="print-sheet">
         <PrintableRoster
           wardName={wardName} month={month} year={year} ceYear={ceYear} days={days}
           employees={rows} cells={cells} signers={signers} note={noteText || null}
+          cleared={roster?.status === 'approved'}
         />
       </div>
     </div>

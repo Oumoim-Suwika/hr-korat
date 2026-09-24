@@ -4,7 +4,7 @@ import PrintableRoster from './PrintableRoster';
 import ClaimDocuments, { defaultMemo, lineForWard, type MemoEdits } from './ClaimDocuments';
 import DailyForms from './DailyForms';
 import RequestToWork from './RequestToWork';
-import { FileText, Printer, Loader2, RotateCcw, Pencil } from 'lucide-react';
+import { FileText, Printer, Loader2, RotateCcw, Pencil, Upload, Trash2 } from 'lucide-react';
 
 type Tab = 'request' | 'ot' | 'bd' | 'daily';
 
@@ -32,6 +32,19 @@ export default function DocumentsView({ wardName, wardPhone, wardId, year, month
   useEffect(() => { const raw = localStorage.getItem(storeKey); setEdits(raw ? JSON.parse(raw) : {}); }, [storeKey]);
   const update = (patch: MemoEdits) => { const next = { ...edits, ...patch }; setEdits(next); localStorage.setItem(storeKey, JSON.stringify(next)); };
   const reset = () => { setEdits({}); localStorage.removeItem(storeKey); };
+
+  // HR attaches a scanned/photographed คำสั่ง (approval order) — stored locally as a
+  // data URL and appended as the final page of the printed/exported packet.
+  const orderKey = `order_${wardId}_${year}_${month}`;
+  const [orderImg, setOrderImg] = useState<string | null>(null);
+  useEffect(() => { setOrderImg(localStorage.getItem(orderKey)); }, [orderKey]);
+  const onOrderFile = (f: File) => {
+    if (f.size > 4 * 1024 * 1024) { alert('ไฟล์ใหญ่เกิน 4MB — โปรดย่อรูปก่อนแนบ'); return; }
+    const reader = new FileReader();
+    reader.onload = () => { const url = String(reader.result); try { localStorage.setItem(orderKey, url); setOrderImg(url); } catch { alert('พื้นที่จัดเก็บไม่พอ — โปรดย่อรูปก่อนแนบ'); } };
+    reader.readAsDataURL(f);
+  };
+  const clearOrder = () => { localStorage.removeItem(orderKey); setOrderImg(null); };
   const ta = 'w-full border border-slate-300 rounded-lg px-3 py-2 text-sm';
 
   const previewRef = useRef<HTMLDivElement>(null);
@@ -64,6 +77,15 @@ export default function DocumentsView({ wardName, wardPhone, wardId, year, month
     return <DailyForms wardName={wardName} wardPhone={wardPhone} month={month} year={year} ceYear={ceYear} days={days} employees={employees} cells={cells} signers={signers} />;
   };
 
+  // Scanned คำสั่ง / approval order attached by HR — printed as the final page.
+  const orderAttachment = orderImg ? (
+    <div className="gov-form" style={{ pageBreakBefore: 'always', textAlign: 'center', padding: '10mm', background: '#fff', borderRadius: 6 }}>
+      <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 8 }}>สำเนาคำสั่ง / หนังสืออนุมัติ (เอกสารแนบท้าย)</div>
+      <div style={{ fontSize: 13, marginBottom: 8 }}>{wardName} · แนบโดยเจ้าหน้าที่ HR</div>
+      <img src={orderImg} alt="สำเนาคำสั่ง" style={{ maxWidth: '100%', maxHeight: '250mm', border: '1px solid #cbd5e1' }} />
+    </div>
+  ) : null;
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3 no-print">
@@ -73,6 +95,11 @@ export default function DocumentsView({ wardName, wardPhone, wardId, year, month
         </div>
         <div className="flex gap-2">
           {tab === 'ot' && <button onClick={() => setShowEdit((s) => !s)} className="flex items-center gap-1.5 text-sm text-slate-700 border border-slate-300 px-3 py-2 rounded-lg"><Pencil className="w-4 h-4" />แก้เนื้อความ</button>}
+          <label className="flex items-center gap-1.5 text-sm text-slate-700 border border-slate-300 px-3 py-2 rounded-lg cursor-pointer hover:bg-slate-50" title="แนบสำเนาคำสั่ง/หนังสืออนุมัติ (รูปภาพ)">
+            <Upload className="w-4 h-4" />{orderImg ? 'เปลี่ยนไฟล์คำสั่ง' : 'แนบไฟล์คำสั่ง (HR)'}
+            <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && onOrderFile(e.target.files[0])} />
+          </label>
+          {orderImg && <button onClick={clearOrder} className="flex items-center gap-1.5 text-sm text-rose-600 border border-rose-200 bg-rose-50 px-3 py-2 rounded-lg hover:bg-rose-100"><Trash2 className="w-4 h-4" />ลบไฟล์แนบ</button>}
           <button onClick={downloadDoc} className="flex items-center gap-1.5 text-sm text-blue-700 border border-blue-300 bg-blue-50 px-3 py-2 rounded-lg hover:bg-blue-100"><FileText className="w-4 h-4" />ดาวน์โหลด Word (.doc)</button>
           <button onClick={() => window.print()} className="flex items-center gap-1.5 text-sm text-white bg-[#0F3575] px-3 py-2 rounded-lg hover:bg-[#0c2a5e]"><Printer className="w-4 h-4" />พิมพ์ทั้งชุด (PDF)</button>
         </div>
@@ -99,8 +126,8 @@ export default function DocumentsView({ wardName, wardPhone, wardId, year, month
 
       {loading ? <div className="grid place-items-center py-12 text-slate-400"><Loader2 className="w-6 h-6 animate-spin" /></div> : (
         <>
-          <div ref={previewRef} className="no-print bg-slate-100 rounded-xl p-4 overflow-auto">{renderPacket(false)}</div>
-          <div className="print-sheet gov-form">{renderPacket(true)}</div>
+          <div ref={previewRef} className="no-print bg-slate-100 rounded-xl p-4 overflow-auto">{renderPacket(false)}{orderAttachment}</div>
+          <div className="print-sheet gov-form">{renderPacket(true)}{orderAttachment}</div>
         </>
       )}
     </div>

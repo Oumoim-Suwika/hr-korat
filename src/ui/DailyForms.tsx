@@ -80,8 +80,8 @@ export default function DailyForms({
         <div style={{ fontSize: 13, marginTop: 6 }}>({thaiBahtText(total)})</div>
       </div>
 
-      {/* 3) timesheet — shows working days from the roster (landscape, 31 days) */}
-      <div className="gov-form print-landscape" style={{ ...paper, maxWidth: 'none' }}>
+      {/* 3) timesheet — shows working days from the roster (fits A4 portrait, 31 days) */}
+      <div className="gov-form print-fit" style={{ ...paper }}>
         <div style={{ textAlign: 'center', fontWeight: 700, fontSize: 18 }}>ใบลงเวลาปฏิบัติงาน (รายวัน)</div>
         <div style={{ textAlign: 'center', fontSize: 14, marginBottom: 8 }}>{wardName} ประจำเดือน {monthName} {toThaiDigits(year)}</div>
         <table style={{ fontSize: 10 }}>

@@ -144,8 +144,8 @@ export default function ClaimDocuments({
         </table>
       </div>
 
-      {/* ใบลงเวลาปฏิบัติงาน (แยก OT / บ่ายดึก) — landscape */}
-      <div className="gov-form print-landscape" style={{ ...paper, maxWidth: 'none', pageBreakBefore: 'always' }}>
+      {/* ใบลงเวลาปฏิบัติงาน (แยก OT / บ่ายดึก) — fits A4 portrait */}
+      <div className="gov-form print-fit" style={{ ...paper, pageBreakBefore: 'always' }}>
         <div style={{ textAlign: 'center', fontWeight: 700, fontSize: 18 }}>ใบลงเวลาปฏิบัติงาน{variant === 'bd' ? 'เวรบ่าย-ดึก' : 'นอกเวลาราชการและวันหยุดราชการ'}</div>
         <div style={{ textAlign: 'center', fontSize: 14, marginBottom: 8 }}>{wardName} ประจำเดือน {monthName} {toThaiDigits(year)}</div>
         <table style={{ fontSize: 10 }}>

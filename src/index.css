@@ -12,16 +12,22 @@
 .print-sheet { display: none; }
 
 @media print {
-  /* Default = A4 portrait (บันทึกข้อความ/หลักฐานการจ่าย/ใบสำคัญ/สรุปรายชื่อ) */
+  /* Every print job is a SINGLE uniform A4 portrait orientation.
+     We deliberately do NOT use named @page landscape: Safari/WebKit ignores
+     the @page size/orientation descriptor entirely, and mixing orientations
+     in one job silently collapses the whole PDF to one orientation (which made
+     portrait memos come out landscape). Portrait works in every browser. */
   @page { size: A4 portrait; margin: 10mm; }
-  /* Named landscape page for wide tables (ตารางเวร / ใบลงเวลา 31 วัน) */
-  @page landscapePage { size: A4 landscape; margin: 8mm; }
+  html, body { background: #fff !important; }
   body * { visibility: hidden; }
   .print-sheet, .print-sheet * { visibility: visible; }
-  .print-sheet { display: block; position: absolute; inset: 0; width: 100%; }
+  /* top/left/width only (NO inset/bottom) so tall content paginates, not clips */
+  .print-sheet { display: block; position: absolute; left: 0; top: 0; width: 100%; }
   .no-print { display: none !important; }
-  /* Elements that should print in landscape (orientation change forces a new page) */
-  .print-landscape { page: landscapePage; }
+  /* Wide day-grid tables (ตารางเวร / ใบลงเวลา, 28-31 วัน) shrink to fit the
+     portrait page instead of overflowing. Fixed layout distributes columns. */
+  .print-fit table { table-layout: fixed; width: 100%; }
+  .print-fit { max-width: 100% !important; }
 }
 
 /* TH Sarabun-style face for official documents (feedback: TH Sarabun IT9/PSK).
@@ -172,20 +178,7 @@ html, body {
   transform: scale(0.98);
 }
 
-/* Clean print style support */
-@media print {
-  aside, header, nav, section, button, .no-print, .premium-btn {
-    display: none !important;
-  }
-  main, .print-target {
-    width: 100% !important;
-    max-width: 100% !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    overflow: visible !important;
-  }
-  body {
-    background-color: white !important;
-    color: black !important;
-  }
-}
+/* NOTE: print rules are centralised in the .print-sheet block above.
+   A second @media print block used to live here and hid `section`/`button`
+   with display:none, which could hide the printable sheet when it was nested
+   in a <section>. Removed to keep a single, predictable print pipeline. */

@@ -13,23 +13,29 @@ const key = (empId: number, day: number) => `${empId}-${day}`;
  * Print via window.print() -> "Save as PDF".
  */
 export default function PrintableRoster({
-  wardName, month, year, ceYear, days, employees, cells, signers, note,
+  wardName, month, year, ceYear, days, employees, cells, signers, note, cleared = false,
 }: {
   wardName: string; month: number; year: number; ceYear: number; days: number[];
   employees: Employee[]; cells: CellMap; signers: RosterSigner[]; note?: string | null;
+  cleared?: boolean;
 }) {
   const controller = signers.find((s) => s.signerRole === 'controller');
   const approver = signers.find((s) => s.signerRole === 'approver');
 
   return (
-    <div className="gov-form print-landscape" style={{ fontSize: 11, padding: '4mm' }}>
+    <div className="gov-form print-fit" style={{ fontSize: 9, padding: '4mm' }}>
       {/* Header with ตราครุฑ */}
       <div style={{ textAlign: 'center', marginBottom: 4 }}>
         <img src="/kruth.png" alt="ตราครุฑ" style={{ height: 46, margin: '0 auto 2px' }} />
         <div style={{ fontWeight: 700, fontSize: 15 }}>
-          ตารางปฏิบัติงาน ประจำเดือน {THAI_MONTHS[month - 1]} {toThaiDigits(year)}
+          ตารางปฏิบัติงาน{cleared ? ' (ฉบับเคลียร์เวรแล้ว)' : ''} ประจำเดือน {THAI_MONTHS[month - 1]} {toThaiDigits(year)}
         </div>
         <div style={{ fontSize: 13 }}>{wardName} โรงพยาบาลมหาราชนครราชสีมา</div>
+        {cleared && (
+          <div style={{ fontSize: 11, marginTop: 2 }}>
+            ผ่านการปรับปรุงจริงแล้ว (เปลี่ยนเวร / ลา / อบรม / ไปราชการ) — ใช้เป็นหลักฐานประกอบการเบิกจ่าย
+          </div>
+        )}
       </div>
 
       <table>
@@ -84,15 +90,17 @@ export default function PrintableRoster({
       </div>
       {note && <div style={{ marginTop: 2, fontSize: 10 }}>หมายเหตุ : {note}</div>}
 
-      {/* Signatures */}
+      {/* Signatures — cleared roster carries an explicit sign-off box */}
       <div style={{ display: 'flex', justifyContent: 'space-around', marginTop: 26, fontSize: 11, textAlign: 'center' }}>
         <div>
           <div>(ลงชื่อ) ..................................................</div>
           <div>( {controller?.name ?? '.........................................'} )</div>
+          <div style={{ fontSize: 10, marginTop: 1 }}>หัวหน้าผู้ควบคุมการปฏิบัติงาน / ผู้จัดตาราง</div>
         </div>
         <div>
           <div>(ลงชื่อ) ..................................................</div>
           <div>( {approver?.name ?? '.........................................'} )</div>
+          <div style={{ fontSize: 10, marginTop: 1 }}>ผู้อนุมัติ</div>
         </div>
       </div>
     </div>

@@ -39,12 +39,22 @@ export default function RequestsView({ role, wardId, year, month, myEmployeeId, 
 
   const showToast = (kind: 'ok' | 'err', msg: string) => { setToast({ kind, msg }); setTimeout(() => setToast(null), 3500); };
 
+  // Named หัวหน้าผู้ควบคุม (controller) from the ward roster — shift-change
+  // approvals are bound to this person (feedback: ผูกอนุมัติเปลี่ยนเวรกับหัวหน้าผู้ควบคุม).
+  const [controllerName, setControllerName] = useState<string>('');
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [emps, reqs] = await Promise.all([api.employees(wardId), api.getRequests(wardId, year, month)]);
+      const [emps, reqs, ros] = await Promise.all([
+        api.employees(wardId),
+        api.getRequests(wardId, year, month),
+        api.getRoster(wardId, year, month),
+      ]);
       setEmployees(emps);
       setRequests(reqs);
+      const ctrl = (ros.signers ?? []).find((s) => s.signerRole === 'controller');
+      setControllerName(ctrl?.name?.trim() ?? '');
     } catch (e: any) { showToast('err', e?.message || 'โหลดไม่สำเร็จ'); }
     finally { setLoading(false); }
   }, [wardId, year, month]);
@@ -56,8 +66,13 @@ export default function RequestsView({ role, wardId, year, month, myEmployeeId, 
     return e ? `${e.prefix ?? ''}${e.firstName} ${e.lastName ?? ''}` : `#${id}`;
   };
 
-  const decide = async (id: number, decision: 'approved' | 'rejected') => {
-    try { await api.decideRequest(id, decision); showToast('ok', decision === 'approved' ? 'อนุมัติแล้ว' : 'ไม่อนุมัติแล้ว'); load(); }
+  const decide = async (id: number, decision: 'approved' | 'rejected', reqType?: string) => {
+    // Shift-change approvals must be authorised by the named หัวหน้าผู้ควบคุม.
+    if (decision === 'approved' && reqType === 'shift_change' && !controllerName) {
+      showToast('err', 'ยังไม่ได้ระบุ "หัวหน้าผู้ควบคุม" ในตารางเวร — โปรดระบุก่อนอนุมัติการเปลี่ยนเวร');
+      return;
+    }
+    try { await api.decideRequest(id, decision); showToast('ok', decision === 'approved' ? (reqType === 'shift_change' ? `อนุมัติโดยหัวหน้าผู้ควบคุม: ${controllerName}` : 'อนุมัติแล้ว') : 'ไม่อนุมัติแล้ว'); load(); }
     catch (e: any) { showToast('err', e?.message || 'ไม่สำเร็จ'); }
   };
 
@@ -112,12 +127,19 @@ export default function RequestsView({ role, wardId, year, month, myEmployeeId, 
                     {(r.fromCode || r.toCode) && <span className="text-xs text-slate-400">{r.fromCode ?? '—'} → {r.toCode ?? '—'}</span>}
                   </div>
                   {r.reason && <div className="text-xs text-slate-400 mt-0.5 truncate">{r.reason}</div>}
+                  {r.type === 'shift_change' && (
+                    <div className="text-[11px] text-[#0F3575] mt-0.5">
+                      {r.status === 'approved'
+                        ? `อนุมัติการเปลี่ยนเวรโดยหัวหน้าผู้ควบคุม${controllerName ? ` : ${controllerName}` : ''}`
+                        : `ผู้มีอำนาจอนุมัติ: หัวหน้าผู้ควบคุม${controllerName ? ` (${controllerName})` : ' — ยังไม่ได้ระบุในตารางเวร'}`}
+                    </div>
+                  )}
                 </div>
                 <span className={`text-xs px-2 py-1 rounded-full ${st.c}`}>{st.t}</span>
                 {canDecide && r.status === 'pending' && (
                   <div className="flex gap-1">
-                    <button onClick={() => decide(r.id, 'approved')} title="อนุมัติ" className="p-1.5 rounded-md bg-emerald-50 text-emerald-600 hover:bg-emerald-100"><Check className="w-4 h-4" /></button>
-                    <button onClick={() => decide(r.id, 'rejected')} title="ไม่อนุมัติ" className="p-1.5 rounded-md bg-rose-50 text-rose-600 hover:bg-rose-100"><X className="w-4 h-4" /></button>
+                    <button onClick={() => decide(r.id, 'approved', r.type)} title="อนุมัติ" className="p-1.5 rounded-md bg-emerald-50 text-emerald-600 hover:bg-emerald-100"><Check className="w-4 h-4" /></button>
+                    <button onClick={() => decide(r.id, 'rejected', r.type)} title="ไม่อนุมัติ" className="p-1.5 rounded-md bg-rose-50 text-rose-600 hover:bg-rose-100"><X className="w-4 h-4" /></button>
                   </div>
                 )}
               </div>
