@@ -347,7 +347,9 @@ export default function ScheduleView({ role, wards, wardId, year, month }: Props
                           className={`border-b border-l border-slate-100 text-center p-0 ${canEdit ? 'cursor-pointer' : ''}`} style={{ height: 34 }}>
                           <div className="flex flex-col items-stretch justify-center h-full leading-none">
                             {c?.otCode && <div className={`text-[10px] font-semibold ${ot?.bgClass} ${ot?.textClass}`}>{c.otCode}</div>}
-                            <div className={`text-[11px] py-0.5 ${nm?.bgClass ?? ''} ${nm?.textClass ?? 'text-slate-300'}`}>{c?.normalCode ?? ''}</div>
+                            {ext
+                              ? <div className="text-[10px] py-0.5 text-slate-300 bg-slate-50">·</div>
+                              : <div className={`text-[11px] py-0.5 ${nm?.bgClass ?? ''} ${nm?.textClass ?? 'text-slate-300'}`}>{c?.normalCode ?? ''}</div>}
                           </div>
                         </td>
                       );

@@ -94,7 +94,7 @@ export default function DailyForms({
             {daily.map((e) => (
               <tr key={e.id}>
                 <td style={{ fontSize: 11 }}>{e.prefix}{e.firstName} {e.lastName ?? ''}</td>
-                {days.map((d) => { const c = cells[cellKey(e.id, d)]?.normalCode; const work = c && c !== 'ออฟ'; return <td key={d} style={{ textAlign: 'center', fontSize: 9 }}>{work ? '✓' : ''}</td>; })}
+                {days.map((d) => { const c = cells[cellKey(e.id, d)]?.normalCode; const work = !!c && c !== 'ออฟ'; return <td key={d} style={{ textAlign: 'center', fontSize: 9, background: work ? '#dbeafe' : undefined, fontWeight: work ? 700 : undefined }}>{work ? (c === 'ช' || c === 'บ' || c === 'ด' ? c : '✓') : ''}</td>; })}
                 <td style={{ textAlign: 'center', fontWeight: 700 }}>{toThaiDigits(workedDays(e.id))}</td>
               </tr>
             ))}

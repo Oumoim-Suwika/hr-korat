@@ -86,7 +86,6 @@ export default function ClaimDocuments({
         <div style={{ textAlign: 'center', marginTop: 40, fontSize: 15 }}>
           <div>(ลงชื่อ) ..................................................</div>
           <div>( {controller?.name ?? '.........................................'} )</div>
-          <div>{controller?.title ?? ''}</div>
         </div>
       </div>
 
@@ -115,8 +114,8 @@ export default function ClaimDocuments({
         </table>
         <div style={{ fontSize: 13, marginTop: 6 }}>({thaiBahtText(total)})</div>
         <div style={{ display: 'flex', justifyContent: 'space-around', marginTop: 36, fontSize: 14, textAlign: 'center' }}>
-          <div><div>(ลงชื่อ) ....................................</div><div>( {controller?.name ?? '...........................'} )</div><div>{controller?.title ?? ''}</div></div>
-          <div><div>(ลงชื่อ) ....................................</div><div>( {approver?.name ?? '...........................'} )</div><div>{approver?.title ?? ''}</div></div>
+          <div><div>(ลงชื่อ) ....................................</div><div>( {controller?.name ?? '...........................'} )</div></div>
+          <div><div>(ลงชื่อ) ....................................</div><div>( {approver?.name ?? '...........................'} )</div></div>
         </div>
       </div>
 
@@ -143,6 +142,30 @@ export default function ClaimDocuments({
             <tr style={{ fontWeight: 700 }}><td colSpan={5} style={{ textAlign: 'right' }}>รวมทั้งสิ้น</td><td style={{ textAlign: 'right' }}>{toThaiDigits(total.toLocaleString('th-TH'))}</td></tr>
           </tbody>
         </table>
+      </div>
+
+      {/* ใบลงเวลาปฏิบัติงาน (แยก OT / บ่ายดึก) — landscape */}
+      <div className="gov-form print-landscape" style={{ ...paper, maxWidth: 'none', pageBreakBefore: 'always' }}>
+        <div style={{ textAlign: 'center', fontWeight: 700, fontSize: 18 }}>ใบลงเวลาปฏิบัติงาน{variant === 'bd' ? 'เวรบ่าย-ดึก' : 'นอกเวลาราชการและวันหยุดราชการ'}</div>
+        <div style={{ textAlign: 'center', fontSize: 14, marginBottom: 8 }}>{wardName} ประจำเดือน {monthName} {toThaiDigits(year)}</div>
+        <table style={{ fontSize: 10 }}>
+          <thead><tr><th style={{ minWidth: 120 }}>ชื่อ - นามสกุล</th>
+            {days.map((d) => { const wd = new Date(year - 543, month - 1, d).getDay(); return <th key={d} style={{ width: 14, background: wd === 0 || wd === 6 ? '#eee' : undefined }}>{toThaiDigits(d)}</th>; })}
+            <th style={{ width: 30 }}>รวม</th></tr></thead>
+          <tbody>
+            {claims.map((c) => (
+              <tr key={c.employee.id}>
+                <td style={{ fontSize: 11 }}>{c.employee.prefix}{c.employee.firstName} {c.employee.lastName ?? ''}</td>
+                {days.map((d) => { const code = cells[cellKey(c.employee.id, d)]?.otCode; const hit = !!code && cols.includes(code); return <td key={d} style={{ textAlign: 'center', fontSize: 8, background: hit ? '#fde2e4' : undefined, fontWeight: hit ? 700 : undefined }}>{hit ? code : ''}</td>; })}
+                <td style={{ textAlign: 'center', fontWeight: 700 }}>{toThaiDigits(c.count)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <div style={{ display: 'flex', justifyContent: 'space-around', marginTop: 24, fontSize: 13, textAlign: 'center' }}>
+          <div><div>(ลงชื่อ) ..............................</div><div>( {controller?.name ?? '...........................'} )</div></div>
+          <div><div>(ลงชื่อ) ..............................</div><div>( {approver?.name ?? '...........................'} )</div></div>
+        </div>
       </div>
     </div>
   );

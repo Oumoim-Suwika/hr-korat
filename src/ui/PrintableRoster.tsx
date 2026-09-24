@@ -89,12 +89,10 @@ export default function PrintableRoster({
         <div>
           <div>(ลงชื่อ) ..................................................</div>
           <div>( {controller?.name ?? '.........................................'} )</div>
-          <div>{controller?.title ?? 'หัวหน้าผู้ควบคุม'}</div>
         </div>
         <div>
           <div>(ลงชื่อ) ..................................................</div>
           <div>( {approver?.name ?? '.........................................'} )</div>
-          <div>{approver?.title ?? 'ผู้อนุมัติ'}</div>
         </div>
       </div>
     </div>

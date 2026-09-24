@@ -5,6 +5,20 @@ import { Loader2, Users, Plus, Upload, Download } from 'lucide-react';
 
 const ROLE_TH: Record<string, string> = { doctor: 'แพทย์', nurse: 'พยาบาล', assistant: 'ผู้ช่วยพยาบาล', room: 'ห้องผ่าตัด', support: 'สนับสนุน' };
 
+function tenure(startDate?: string | null): string {
+  if (!startDate) return '—';
+  const s = new Date(startDate); if (isNaN(+s)) return '—';
+  const now = new Date();
+  let m = (now.getFullYear() - s.getFullYear()) * 12 + (now.getMonth() - s.getMonth());
+  if (now.getDate() < s.getDate()) m--;
+  if (m < 0) m = 0;
+  return `${Math.floor(m / 12)} ปี ${m % 12} เดือน`;
+}
+function fmtDate(d?: string | null): string {
+  if (!d) return '—'; const dt = new Date(d); if (isNaN(+dt)) return '—';
+  return dt.toLocaleDateString('th-TH', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
 export default function PersonnelView({ wardId, wardName, role }: { wardId: number; wardName?: string; role: UserRole }) {
   const [rows, setRows] = useState<Employee[]>([]);
   const [wards, setWards] = useState<Ward[]>([]);
@@ -13,7 +27,7 @@ export default function PersonnelView({ wardId, wardName, role }: { wardId: numb
   const [toast, setToast] = useState<string | null>(null);
   const [filterWard, setFilterWard] = useState<number | 'all'>('all');
   const [filterRole, setFilterRole] = useState<string>('all');
-  const [ne, setNe] = useState({ prefix: 'นางสาว', firstName: '', lastName: '', role: 'support', positionText: '', employeeType: 'ข้าราชการ', paymentType: 'รายเดือน', homeWardId: wardId });
+  const [ne, setNe] = useState({ prefix: 'นางสาว', firstName: '', lastName: '', role: 'support', positionText: '', employeeType: 'ข้าราชการ', paymentType: 'รายเดือน', employeeCode: '', startDate: '', homeWardId: wardId });
   const fileRef = useRef<HTMLInputElement>(null);
   const canEdit = role === 'supervisor' || role === 'admin';
 
@@ -111,6 +125,8 @@ export default function PersonnelView({ wardId, wardName, role }: { wardId: numb
             {['รายเดือน', 'รายวัน', 'รายคาบ'].map((p) => <option key={p} value={p}>{p}</option>)}
           </select>
           <input placeholder="ประเภทการจ้าง" value={ne.employeeType} onChange={(e) => setNe({ ...ne, employeeType: e.target.value })} className="border border-slate-300 rounded px-3 py-2 text-sm" />
+          <input placeholder="เลขที่คำสั่งจ้าง (ลูกจ้างรายวัน)" value={ne.employeeCode} onChange={(e) => setNe({ ...ne, employeeCode: e.target.value })} className="border border-slate-300 rounded px-3 py-2 text-sm" />
+          <label className="text-sm text-slate-500 flex items-center gap-2">วันที่เริ่มจ้าง<input type="date" value={ne.startDate} onChange={(e) => setNe({ ...ne, startDate: e.target.value })} className="border border-slate-300 rounded px-2 py-1.5 text-sm flex-1" /></label>
           <button onClick={add} className="text-sm text-white bg-[#0F3575] rounded px-3 py-2 sm:col-span-3">บันทึกบุคลากร</button>
         </div>
       )}
@@ -123,6 +139,7 @@ export default function PersonnelView({ wardId, wardName, role }: { wardId: numb
               <th className="text-left px-4 py-2 font-medium">ชื่อ - นามสกุล</th><th className="text-left px-4 py-2 font-medium">ตำแหน่ง</th>
               <th className="text-left px-4 py-2 font-medium">กลุ่มงาน</th><th className="text-left px-4 py-2 font-medium">สาย</th>
               <th className="text-left px-4 py-2 font-medium">ประเภทจ้าง</th><th className="text-left px-4 py-2 font-medium">การจ่าย</th>
+              <th className="text-left px-4 py-2 font-medium">คำสั่งจ้าง / อายุงาน</th>
             </tr></thead>
             <tbody className="divide-y divide-slate-100">
               {filtered.map((e) => (
@@ -133,6 +150,9 @@ export default function PersonnelView({ wardId, wardName, role }: { wardId: numb
                   <td className="px-4 py-2 text-slate-500">{ROLE_TH[e.role] ?? e.role}</td>
                   <td className="px-4 py-2 text-slate-500">{e.employeeType ?? '—'}</td>
                   <td className="px-4 py-2 text-slate-500">{e.paymentType}</td>
+                  <td className="px-4 py-2 text-slate-500">{(e.paymentType === 'รายวัน' || e.paymentType === 'รายคาบ')
+                    ? <span className="text-xs">{e.employeeCode ? `คำสั่ง ${e.employeeCode}` : 'ยังไม่ระบุคำสั่ง'} · เริ่ม {fmtDate(e.startDate)} · อายุงาน {tenure(e.startDate)}</span>
+                    : '—'}</td>
                 </tr>
               ))}
             </tbody>
