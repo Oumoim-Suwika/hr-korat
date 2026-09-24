@@ -74,6 +74,30 @@ const SECTIONS: NavSection[] = [
 
 const ROLE_LABEL: Record<UserRole, string> = { staff: 'เจ้าหน้าที่', supervisor: 'หัวหน้างาน', finance: 'การเงิน', admin: 'ผู้ดูแลระบบ' };
 
+// Which header filters each page actually uses (others are hidden)
+const HEADER_FILTERS: Record<TabKey, { ward?: boolean; month?: boolean; year?: boolean }> = {
+  dashboard: { month: true, year: true },
+  schedule: { ward: true, month: true, year: true },
+  daily: { ward: true, month: true, year: true },
+  personnel: {},
+  wards: {},
+  staffing: { ward: true },
+  shifts: {},
+  holidays: { year: true },
+  swap: { ward: true, month: true, year: true },
+  leave: { ward: true, month: true, year: true },
+  ot: { ward: true, month: true, year: true },
+  finance: { month: true, year: true },
+  reconcile: { month: true, year: true },
+  payroll: { ward: true, month: true, year: true },
+  documents: { ward: true, month: true, year: true },
+  history: { ward: true },
+  reports: { month: true, year: true },
+  audit: {},
+  users: {},
+  settings: {},
+};
+
 export default function AppShell() {
   const { user, logout } = useAuth();
   const [wards, setWards] = useState<Ward[]>([]);
@@ -164,17 +188,29 @@ export default function AppShell() {
       <main className="flex-1 min-w-0 flex flex-col">
         <header className="no-print bg-white border-b border-slate-200 px-4 sm:px-6 py-3 flex flex-wrap items-center gap-3 justify-between">
           <button className="lg:hidden p-2 -ml-2" onClick={() => setSidebarOpen(true)}><Menu className="w-5 h-5" /></button>
-          <div className="flex items-center gap-2 flex-wrap">
-            <select value={wardId ?? ''} onChange={(e) => setWardId(Number(e.target.value))} className="text-sm border border-slate-300 rounded-lg px-3 py-1.5" disabled={role === 'supervisor' && !!user.wardId}>
-              {wards.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
-            </select>
-            <select value={month} onChange={(e) => setMonth(Number(e.target.value))} className="text-sm border border-slate-300 rounded-lg px-3 py-1.5">
-              {THAI_MONTHS.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
-            </select>
-            <select value={year} onChange={(e) => setYear(Number(e.target.value))} className="text-sm border border-slate-300 rounded-lg px-3 py-1.5">
-              {[2568, 2569, 2570].map((y) => <option key={y} value={y}>{y}</option>)}
-            </select>
-          </div>
+          {(() => {
+            const hf = HEADER_FILTERS[tab] ?? {};
+            if (!hf.ward && !hf.month && !hf.year) return <div className="text-sm font-medium text-slate-500">{sections.flatMap((s) => s.items).find((n) => n.key === tab)?.label ?? ''}</div>;
+            return (
+              <div className="flex items-center gap-2 flex-wrap">
+                {hf.ward && (
+                  <select value={wardId ?? ''} onChange={(e) => setWardId(Number(e.target.value))} className="text-sm border border-slate-300 rounded-lg px-3 py-1.5" disabled={role === 'supervisor' && !!user.wardId}>
+                    {wards.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
+                  </select>
+                )}
+                {hf.month && (
+                  <select value={month} onChange={(e) => setMonth(Number(e.target.value))} className="text-sm border border-slate-300 rounded-lg px-3 py-1.5">
+                    {THAI_MONTHS.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
+                  </select>
+                )}
+                {hf.year && (
+                  <select value={year} onChange={(e) => setYear(Number(e.target.value))} className="text-sm border border-slate-300 rounded-lg px-3 py-1.5">
+                    {[2568, 2569, 2570].map((y) => <option key={y} value={y}>{y}</option>)}
+                  </select>
+                )}
+              </div>
+            );
+          })()}
         </header>
         <div className="flex-1 p-4 sm:p-6 overflow-auto">{renderView()}</div>
       </main>

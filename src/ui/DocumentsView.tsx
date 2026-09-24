@@ -42,7 +42,9 @@ export default function DocumentsView({ wardName, wardPhone, wardId, year, month
     const inner = (previewRef.current?.innerHTML ?? '')
       .replaceAll('/garuda.png', 'https://hr-mnrh.app.sati.co.th/garuda.png');
     const full = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><title>บันทึกข้อความ</title><style>
-      body{font-family:'TH Sarabun New','TH SarabunPSK','Sarabun','Noto Sans Thai',sans-serif;font-size:16pt;color:#000;}
+      @font-face{font-family:'TH Sarabun IT9';src:url('https://hr-mnrh.app.sati.co.th/fonts/THSarabunIT9.ttf') format('truetype');}
+      body,table,td,th,div,span,p{font-family:'TH Sarabun IT9','TH Sarabun New','TH SarabunPSK','Sarabun',sans-serif;}
+      body{font-size:16pt;color:#000;}
       table{border-collapse:collapse;width:100%;} td,th{border:1px solid #000;padding:2px 4px;}
       @page{size:A4;margin:1.5cm;}
     </style></head><body>${inner}</body></html>`;

@@ -1,6 +1,12 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Noto+Sans+Thai:wght@300;400;500;600;700;800;900&family=Sarabun:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
+/* ---- TH Sarabun IT9 (ฟอนต์ราชการ ฝังจริง) ------------------------------ */
+@font-face { font-family: 'TH Sarabun IT9'; src: url('/fonts/THSarabunIT9.ttf') format('truetype'); font-weight: normal; font-style: normal; font-display: swap; }
+@font-face { font-family: 'TH Sarabun IT9'; src: url('/fonts/THSarabunIT9-Bold.ttf') format('truetype'); font-weight: bold; font-style: normal; font-display: swap; }
+@font-face { font-family: 'TH Sarabun IT9'; src: url('/fonts/THSarabunIT9-Italic.ttf') format('truetype'); font-weight: normal; font-style: italic; font-display: swap; }
+@font-face { font-family: 'TH Sarabun IT9'; src: url('/fonts/THSarabunIT9-BoldItalic.ttf') format('truetype'); font-weight: bold; font-style: italic; font-display: swap; }
+
 /* ---- Government form print (ตราครุฑ) ---------------------------------- */
 /* Screen: the printable sheet is hidden until the user prints. */
 .print-sheet { display: none; }
@@ -22,8 +28,9 @@
    'Sarabun' (Google Fonts) is the web-available equivalent; for pixel-exact
    TH Sarabun New, install the font locally and it will be used first. */
 .gov-form {
-  font-family: 'TH Sarabun New', 'TH SarabunPSK', 'Sarabun', 'Noto Sans Thai', sans-serif;
+  font-family: 'TH Sarabun IT9', 'TH Sarabun New', 'TH SarabunPSK', 'Sarabun', 'Noto Sans Thai', sans-serif;
   color: #000;
+  font-size: 15pt;
 }
 .gov-form table { border-collapse: collapse; width: 100%; }
 .gov-form th, .gov-form td { border: 1px solid #000; padding: 1px 2px; }
