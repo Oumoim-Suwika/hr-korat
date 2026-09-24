@@ -313,8 +313,8 @@ export default function ScheduleView({ role, wards, wardId, year, month }: Props
       {loading ? (
         <div className="grid place-items-center py-20 text-slate-400"><Loader2 className="w-6 h-6 animate-spin" /></div>
       ) : (
-        <div className="overflow-x-auto bg-white border border-slate-200 rounded-lg">
-          <table className="text-xs border-collapse">
+        <div className="overflow-x-auto bg-white border border-slate-200 rounded-lg w-full">
+          <table className="text-xs border-collapse min-w-full">
             <thead>
               <tr className="bg-slate-50">
                 <th className="sticky left-0 bg-slate-50 z-10 px-3 py-2 text-left font-semibold text-slate-600 min-w-[180px] border-b border-slate-200">ชื่อ - ตำแหน่ง</th>
