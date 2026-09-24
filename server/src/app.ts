@@ -384,8 +384,8 @@ app.post('/api/employees/import', requireAuth, requireRole('supervisor', 'admin'
   return c.json({ imported: rows.length });
 });
 
-// ---- shift types upsert (admin) --------------------------------------------
-app.post('/api/shift-types', requireAuth, requireRole('admin'), async (c) => {
+// ---- shift types upsert (supervisor/admin) ---------------------------------
+app.post('/api/shift-types', requireAuth, requireRole('supervisor', 'admin'), async (c) => {
   const b = await c.req.json().catch(() => ({}));
   const p = z.object({ code: z.string().min(1), name: z.string().min(1), hours: z.number().default(0), startHour: z.number().nullable().optional(), endHour: z.number().nullable().optional(), isOt: z.boolean().default(false), isWork: z.boolean().default(true), category: z.string().nullable().optional(), sortOrder: z.number().default(0) }).safeParse(b);
   if (!p.success) return c.json({ error: 'invalid_input' }, 400);

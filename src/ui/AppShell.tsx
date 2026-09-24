@@ -162,7 +162,7 @@ export default function AppShell() {
       case 'personnel': return <PersonnelView wardId={wardId} wardName={wardName} role={role} />;
       case 'wards': return <WardsView role={role} />;
       case 'staffing': return <StaffingView wardName={wardName} wardId={wardId} role={role} />;
-      case 'shifts': return <ShiftSettingsView />;
+      case 'shifts': return <ShiftSettingsView role={role} />;
       case 'holidays': return <HolidaysView year={year} role={role} />;
       case 'swap': return <RequestsView role={role} wardId={wardId} year={year} month={month} myEmployeeId={user.employeeId} filterType="shift_change" title="คำขอแลกเวร" />;
       case 'leave': return <RequestsView role={role} wardId={wardId} year={year} month={month} myEmployeeId={user.employeeId} filterType="leave" title="คำขอลา" />;
