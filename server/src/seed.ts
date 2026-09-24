@@ -20,6 +20,8 @@ const WARDS = [
   { code: 'M01', name: 'กลุ่มงานอายุรกรรม (M01)', building: 'ตึกอายุรกรรม', phone: '35870' },
   { code: 'ICU', name: 'หอผู้ป่วยวิกฤต (ICU)', building: 'ตึกวิกฤตบำบัด', phone: '31415' },
   { code: 'ER', name: 'แผนกฉุกเฉิน (ER)', building: 'ตึกฉุกเฉินอุบัติเหตุ', phone: '39911' },
+  { code: 'OR', name: 'กลุ่มงานการพยาบาลผู้ป่วยผ่าตัด (OR)', building: 'อาคารผ่าตัด', phone: '32090' },
+  { code: 'GS', name: 'งานบริการกลางและซ่อมบำรุง (GS)', building: 'อาคารบริการกลาง', phone: '32010' },
 ];
 
 // Shift codes from the real Maharat Korat form legend + standard hospital codes.
@@ -166,9 +168,22 @@ export async function seed() {
       { prefix: 'นางสาว', first: 'อรุณี', last: 'แจ่มใส', role: 'nurse', pos: 'พยาบาลวิสัญญี', line: 'พยาบาล' },
     ],
     M01: [
+      { prefix: 'นพ.', first: 'ธนา', last: 'อายุรเวช', role: 'doctor', pos: 'อายุรแพทย์', line: 'แพทย์' },
       { prefix: 'นาง', first: 'วราภรณ์', last: 'เมตตา', role: 'nurse', pos: 'พยาบาลวิชาชีพชำนาญการ', line: 'พยาบาล' },
       { prefix: 'นางสาว', first: 'ธิดา', last: 'อ่อนหวาน', role: 'nurse', pos: 'พยาบาลวิชาชีพ', line: 'พยาบาล' },
       { prefix: 'นางสาว', first: 'กมล', last: 'ศรีสุข', role: 'assistant', pos: 'ผู้ช่วยพยาบาล', line: 'พยาบาล' },
+    ],
+    OR: [ // ห้องผ่าตัด — หมอ + พยาบาลห้องผ่าตัด + พนักงานห้องผ่าตัด
+      { prefix: 'นพ.', first: 'สุรชัย', last: 'ผ่าตัดดี', role: 'doctor', pos: 'ศัลยแพทย์ทั่วไป', line: 'แพทย์' },
+      { prefix: 'นาง', first: 'พิมพ์', last: 'สเตอไรล์', role: 'nurse', pos: 'พยาบาลห้องผ่าตัด (Scrub)', line: 'พยาบาล' },
+      { prefix: 'นางสาว', first: 'ชญา', last: 'เซอร์คูเลต', role: 'nurse', pos: 'พยาบาลห้องผ่าตัด (Circulate)', line: 'พยาบาล' },
+      { prefix: 'นาย', first: 'ทวี', last: 'ยกเปล', role: 'room', pos: 'พนักงานประจำห้องผ่าตัด', line: 'สนับสนุน' },
+    ],
+    GS: [ // สายสนับสนุน — คนสวน / ช่าง / ธุรการ / พนักงานออฟฟิศ
+      { prefix: 'นาย', first: 'สมพงษ์', last: 'รดน้ำต้นไม้', role: 'support', pos: 'พนักงานดูแลสวน (คนสวน)', line: 'สนับสนุน' },
+      { prefix: 'นาย', first: 'ช่างเอก', last: 'ซ่อมได้', role: 'support', pos: 'ช่างเทคนิค/ซ่อมบำรุง', line: 'สนับสนุน' },
+      { prefix: 'นางสาว', first: 'ธุรกิจ', last: 'เอกสารดี', role: 'support', pos: 'เจ้าพนักงานธุรการ', line: 'สนับสนุน' },
+      { prefix: 'นางสาว', first: 'ออฟฟิศ', last: 'บันทึกข้อมูล', role: 'support', pos: 'พนักงานบันทึกข้อมูล (ออฟฟิศ)', line: 'สนับสนุน' },
     ],
   };
 
@@ -273,6 +288,15 @@ export async function seed() {
     U01: [ // สายสนับสนุน (การเงิน)
       { type: 'ot', day: 3, toCode: 'BD', reason: 'ประจำจุดเก็บเงินนอกเวลา', status: 'approved' },
       { type: 'ot', day: 17, toCode: 'BD', reason: 'ปิดงบสิ้นเดือน', status: 'pending' },
+    ],
+    OR: [ // ห้องผ่าตัด
+      { type: 'ot', day: 8, toCode: 'ชot', reason: 'ผ่าตัดฉุกเฉินวันหยุด (on-call)', status: 'approved' },
+      { type: 'ot', day: 21, toCode: 'OR', reason: 'สแตนด์บายห้องผ่าตัด', status: 'pending' },
+    ],
+    GS: [ // คนสวน/ช่าง/ธุรการ
+      { type: 'ot', day: 5, toCode: 'BD', reason: 'ดูแลระบบสาธารณูปโภคนอกเวลา (ช่าง)', status: 'approved' },
+      { type: 'ot', day: 14, toCode: 'ชot', reason: 'จัดสถานที่งานพิธีวันหยุด (คนสวน)', status: 'pending' },
+      { type: 'leave', day: 26, reason: 'ลากิจ (ธุรการ)', status: 'pending' },
     ],
   };
   for (const [code, plan] of Object.entries(reqPlan)) {
