@@ -237,6 +237,34 @@ export async function seed() {
     ]);
   }
 
+  // ---- daily-wage employee in U01 (for รายวัน forms) — idempotent ----------
+  const u01b = wardByCode['U01'];
+  if (u01b) {
+    const hasDaily = await db.select({ n: sql<number>`count(*)` }).from(schema.employees)
+      .where(and(eq(schema.employees.homeWardId, u01b), eq(schema.employees.paymentType, 'รายวัน')));
+    if (Number(hasDaily[0].n) === 0) {
+      await db.insert(schema.employees).values([
+        { prefix: 'นางสาว', firstName: 'การเงิน', lastName: 'มหาราช', role: 'support', positionText: 'ลูกจ้างชั่วคราว (รายวัน)', employeeType: 'ลูกจ้างชั่วคราว (รายวัน)', paymentType: 'รายวัน', line: 'สนับสนุน', baseWage: 420, bankAccount: '983-1-45xxx-1', startDate: '2024-10-01', homeWardId: u01b, sortOrder: 10 },
+        { prefix: 'นาย', firstName: 'บัญชี', lastName: 'ราชสีมา', role: 'support', positionText: 'ลูกจ้างชั่วคราว (รายวัน)', employeeType: 'ลูกจ้างชั่วคราว (รายวัน)', paymentType: 'รายวัน', line: 'สนับสนุน', baseWage: 420, bankAccount: '983-1-45xxx-2', startDate: '2025-01-15', homeWardId: u01b, sortOrder: 11 },
+      ]);
+    }
+  }
+
+  // ---- sample requests (so คำขอ tabs have data) — idempotent ---------------
+  const reqCount = await db.select({ n: sql<number>`count(*)` }).from(schema.requests);
+  if (Number(reqCount[0].n) === 0) {
+    const icu = wardByCode['ICU'];
+    const icuEmps = icu ? await db.select().from(schema.employees).where(eq(schema.employees.homeWardId, icu)).limit(4) : [];
+    if (icu && icuEmps.length >= 3) {
+      await db.insert(schema.requests).values([
+        { type: 'shift_change', employeeId: icuEmps[0].id, wardId: icu, year: 2569, month: 7, day: 12, fromCode: 'ด', toCode: 'บ', reason: 'ติดธุระครอบครัว ขอสลับกับเวรบ่าย', status: 'pending' },
+        { type: 'leave', employeeId: icuEmps[1].id, wardId: icu, year: 2569, month: 7, day: 15, toDay: 16, reason: 'ลากิจ 2 วัน', status: 'approved' },
+        { type: 'ot', employeeId: icuEmps[2].id, wardId: icu, year: 2569, month: 7, day: 22, toCode: 'BD', reason: 'ช่วยเวรบ่ายดึกช่วงผู้ป่วยล้น', status: 'pending' },
+        { type: 'leave', employeeId: icuEmps[0].id, wardId: icu, year: 2569, month: 7, day: 28, reason: 'ลาป่วย', status: 'rejected' },
+      ]);
+    }
+  }
+
   console.log('Seed complete. Wards:', wardRows.length, '| Positions:', posRows.length);
 }
 

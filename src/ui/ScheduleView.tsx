@@ -36,6 +36,7 @@ export default function ScheduleView({ role, wards, wardId, year, month }: Props
   const [roster, setRoster] = useState<Roster | null>(null);
   const [calendar, setCalendar] = useState<WorkingCalendar | null>(null);
   const [signers, setSigners] = useState<RosterSigner[]>([]);
+  const [noteText, setNoteText] = useState('');
   const [brush, setBrush] = useState<string>('ช');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -72,6 +73,7 @@ export default function ScheduleView({ role, wards, wardId, year, month }: Props
       setWorkingDaysInput(cal?.workingDays ?? 0);
       setRoster(ros.roster);
       setSigners(ros.signers ?? []);
+      setNoteText(ros.roster?.note ?? '');
       const map: CellMap = {};
       for (const c of ros.cells) map[key(c.employeeId, c.day)] = { normalCode: c.normalCode, otCode: c.otCode };
       setCells(map);
@@ -167,7 +169,7 @@ export default function ScheduleView({ role, wards, wardId, year, month }: Props
   const save = async () => {
     setSaving(true);
     try {
-      const res = await api.saveRoster({ wardId, year, month, note: roster?.note ?? null, signers, cells: buildCells() });
+      const res = await api.saveRoster({ wardId, year, month, note: noteText || null, signers, cells: buildCells() });
       setRoster(res.roster);
       showToast('ok', `บันทึกแล้ว (${res.savedCells} ช่อง)`);
     } catch (e: any) {
@@ -340,12 +342,51 @@ export default function ScheduleView({ role, wards, wardId, year, month }: Props
                   <td className="border-t border-l border-slate-200" />
                 </tr>
               ))}
+              {/* total working per day (รวมวันทำการ) */}
+              <tr className="bg-[#0F3575]/5 font-semibold">
+                <td className="sticky left-0 bg-[#0F3575]/5 z-10 px-3 py-1 border-t border-slate-200 text-[11px] text-[#0F3575]">รวมขึ้นเวร/วัน</td>
+                {days.map((d) => { const mp = manpower[d] as any; const tot = (mp.ch || 0) + (mp.ba || 0) + (mp.du || 0); return <td key={d} className="border-t border-l border-slate-100 text-center text-[11px] text-[#0F3575]">{tot || ''}</td>; })}
+                <td className="border-t border-l border-slate-200" />
+              </tr>
             </tbody>
           </table>
         </div>
       )}
 
       {employees.length === 0 && !loading && <p className="text-sm text-slate-400 text-center py-6">ยังไม่มีบุคลากรในกลุ่มงานนี้</p>}
+
+      {/* note + related persons (signers, max 4) */}
+      {canEdit && !loading && (
+        <div className="grid md:grid-cols-2 gap-4">
+          <div className="bg-white border border-slate-200 rounded-lg p-4">
+            <label className="text-sm font-medium text-slate-600">หมายเหตุท้ายตารางเวร</label>
+            <textarea rows={3} value={noteText} onChange={(e) => setNoteText(e.target.value)}
+              placeholder="เช่น เบิกตามเวลาที่ขึ้นปฏิบัติงานจริง / เวรที่มีเครื่องหมาย * คือเวรเปลี่ยนแปลง"
+              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm mt-1" />
+          </div>
+          <div className="bg-white border border-slate-200 rounded-lg p-4">
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-sm font-medium text-slate-600">ผู้เกี่ยวข้อง (สูงสุด 4 คน)</label>
+              {signers.length < 4 && <button onClick={() => setSigners([...signers, { ordinal: signers.length + 1, name: '', title: '', signerRole: 'other' }])} className="text-xs text-[#0F3575]">+ เพิ่ม</button>}
+            </div>
+            <div className="space-y-2">
+              {signers.map((s, i) => (
+                <div key={i} className="flex gap-1.5 items-center">
+                  <select value={s.signerRole ?? 'other'} onChange={(e) => { const n = [...signers]; n[i] = { ...s, signerRole: e.target.value as any }; setSigners(n); }} className="text-xs border border-slate-200 rounded px-1 py-1.5 w-24">
+                    <option value="controller">หัวหน้าผู้ควบคุม</option>
+                    <option value="approver">ผู้อนุมัติ</option>
+                    <option value="other">อื่นๆ</option>
+                  </select>
+                  <input value={s.name} onChange={(e) => { const n = [...signers]; n[i] = { ...s, name: e.target.value }; setSigners(n); }} placeholder="ชื่อ-นามสกุล" className="flex-1 text-sm border border-slate-200 rounded px-2 py-1.5" />
+                  <input value={s.title ?? ''} onChange={(e) => { const n = [...signers]; n[i] = { ...s, title: e.target.value }; setSigners(n); }} placeholder="ตำแหน่ง" className="flex-1 text-sm border border-slate-200 rounded px-2 py-1.5" />
+                  <button onClick={() => setSigners(signers.filter((_, j) => j !== i))} className="text-rose-400 text-xs px-1">✕</button>
+                </div>
+              ))}
+              {signers.length === 0 && <p className="text-xs text-slate-400">ยังไม่ได้ระบุ — ต้องมีอย่างน้อย หัวหน้าผู้ควบคุม และ ผู้อนุมัติ</p>}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Hidden on screen; rendered only when printing (ตราครุฑ government form) */}
       <PrintableRoster

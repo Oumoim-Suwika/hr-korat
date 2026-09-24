@@ -3,13 +3,14 @@ import { useRosterData, computeClaim } from '../lib/useRosterData';
 import PrintableRoster from './PrintableRoster';
 import ClaimDocuments, { defaultMemo, lineForWard, type MemoEdits } from './ClaimDocuments';
 import DailyForms from './DailyForms';
+import RequestToWork from './RequestToWork';
 import { FileText, Printer, Loader2, RotateCcw, Pencil } from 'lucide-react';
 
 export default function DocumentsView({ wardName, wardPhone, wardId, year, month }: {
   wardName: string; wardPhone?: string; wardId: number; year: number; month: number;
 }) {
   const { employees, cells, signers, days, ceYear, roster, loading } = useRosterData(wardId, year, month);
-  const [tab, setTab] = useState<'ot' | 'daily'>('ot');
+  const [tab, setTab] = useState<'request' | 'ot' | 'daily'>('request');
   const [showEdit, setShowEdit] = useState(false);
   const [edits, setEdits] = useState<MemoEdits>({});
   const storeKey = `memo_${wardId}_${year}_${month}`;
@@ -44,7 +45,7 @@ export default function DocumentsView({ wardName, wardPhone, wardId, year, month
 
       {/* tabs: separate OT vs daily per feedback */}
       <div className="flex gap-2 no-print">
-        {([['ot', 'ชุด OT / บ่ายดึก'], ['daily', 'ชุดรายวัน / รายคาบ']] as const).map(([k, label]) => (
+        {([['request', 'ชุดขอขึ้น (ก่อนขึ้นเวร)'], ['ot', 'ชุดเบิก OT / บ่ายดึก'], ['daily', 'ชุดรายวัน / รายคาบ']] as const).map(([k, label]) => (
           <button key={k} onClick={() => setTab(k)} className={`text-sm px-4 py-2 rounded-lg border ${tab === k ? 'bg-[#0F3575] text-white border-[#0F3575]' : 'border-slate-300 text-slate-600'}`}>{label}</button>
         ))}
       </div>
@@ -66,14 +67,23 @@ export default function DocumentsView({ wardName, wardPhone, wardId, year, month
         <>
           {/* on-screen preview */}
           <div className="no-print bg-slate-100 rounded-xl p-4 overflow-auto">
-            {tab === 'ot'
+            {tab === 'request'
+              ? <RequestToWork wardName={wardName} wardPhone={wardPhone} month={month} year={year} employees={employees} signers={signers} />
+              : tab === 'ot'
               ? <ClaimDocuments wardName={wardName} wardPhone={wardPhone} month={month} year={year} employees={employees} cells={cells} days={days} signers={signers} edits={edits} />
               : <DailyForms wardName={wardName} wardPhone={wardPhone} month={month} year={year} ceYear={ceYear} days={days} employees={employees} cells={cells} signers={signers} />}
           </div>
 
           {/* print packet */}
           <div className="print-sheet gov-form">
-            {tab === 'ot' ? (
+            {tab === 'request' ? (
+              <>
+                <div style={{ pageBreakAfter: 'always' }}>
+                  <RequestToWork wardName={wardName} wardPhone={wardPhone} month={month} year={year} employees={employees} signers={signers} />
+                </div>
+                <PrintableRoster wardName={wardName} month={month} year={year} ceYear={ceYear} days={days} employees={employees} cells={cells} signers={signers} note={roster?.note ?? null} />
+              </>
+            ) : tab === 'ot' ? (
               <>
                 <div style={{ pageBreakAfter: 'always' }}>
                   <ClaimDocuments wardName={wardName} wardPhone={wardPhone} month={month} year={year} employees={employees} cells={cells} days={days} signers={signers} edits={edits} />
