@@ -79,7 +79,18 @@ export default function DocumentsView({ wardName, wardPhone, wardId, year, month
     URL.revokeObjectURL(url);
   };
 
-  const schedule = <div className="print-page-break"><PrintableRoster wardName={wardName} month={month} year={year} ceYear={ceYear} days={days} employees={employees} cells={cells} signers={signers} note={roster?.note ?? null} hours={effHours} /></div>;
+  // ตารางเวรแนบท้ายชุดเอกสาร (requirement ข้อ 6.4): ตารางเวรที่อนุมัติแล้วถือเป็น
+  // "ฉบับเคลียร์เวรแล้ว" — ผ่านการเปลี่ยนเวร/ลา/อบรม/ไปราชการเรียบร้อย จึงต้องพิมพ์
+  // ป้ายกำกับฉบับเคลียร์ + สถานะอนุมัติ + ช่องเซ็นรับรอง ติดไปกับชุดเบิกด้วย
+  const schedule = (
+    <div className="print-page-break">
+      <PrintableRoster
+        wardName={wardName} month={month} year={year} ceYear={ceYear} days={days}
+        employees={employees} cells={cells} signers={signers} note={roster?.note ?? null}
+        cleared={roster?.status === 'approved'} hours={effHours}
+      />
+    </div>
+  );
 
   const renderPacket = (forPrint: boolean) => {
     if (tab === 'request') return <><div style={forPrint ? { pageBreakAfter: 'always' } : undefined}><RequestToWork wardName={wardName} wardPhone={wardPhone} month={month} year={year} employees={employees} signers={signers} /></div>{forPrint && schedule}</>;

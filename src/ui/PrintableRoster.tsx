@@ -37,9 +37,15 @@ export default function PrintableRoster({
         </div>
         <div style={{ fontSize: 13 }}>{wardName} โรงพยาบาลมหาราชนครราชสีมา</div>
         {cleared && (
-          <div style={{ fontSize: 11, marginTop: 2 }}>
-            ผ่านการปรับปรุงจริงแล้ว (เปลี่ยนเวร / ลา / อบรม / ไปราชการ) — ใช้เป็นหลักฐานประกอบการเบิกจ่าย
-          </div>
+          <>
+            <div style={{ fontSize: 11, marginTop: 2 }}>
+              ผ่านการปรับปรุงจริงแล้ว (เปลี่ยนเวร / ลา / อบรม / ไปราชการ) — ใช้เป็นหลักฐานประกอบการเบิกจ่าย
+            </div>
+            {/* ข้อ 6.4: ชุดเบิกต้องเห็นสถานะอนุมัติของตารางเวรบนหน้ากระดาษ */}
+            <div style={{ fontSize: 11, marginTop: 1, fontWeight: 700 }}>
+              สถานะตารางเวร : อนุมัติแล้ว
+            </div>
+          </>
         )}
       </div>
 

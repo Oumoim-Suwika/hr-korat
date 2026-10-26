@@ -204,7 +204,10 @@ export default function ScheduleView({ role, wards, wardId, year, month }: Props
       setRoster(res.roster);
       showToast('ok', `บันทึกแล้ว (${res.savedCells} ช่อง)`);
     } catch (e: any) {
-      if (e instanceof ApiError && e.code === 'calendar_not_locked') showToast('err', e.message);
+      // ข้อความจาก server อธิบายสาเหตุเป็นภาษาไทยอยู่แล้ว (วันทำการยังไม่ล็อก,
+      // เลยกรอบเวลาแก้ไขของหน่วย, การเงินปิดรอบเบิก) จึงแสดงตรง ๆ
+      const known = ['calendar_not_locked', 'edit_window_closed', 'finance_locked'];
+      if (e instanceof ApiError && known.includes(e.code ?? '')) showToast('err', e.message);
       else showToast('err', e?.message || 'บันทึกไม่สำเร็จ');
     } finally { setSaving(false); }
   };

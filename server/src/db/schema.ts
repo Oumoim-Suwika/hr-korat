@@ -40,7 +40,26 @@ export const wards = pgTable('wards', {
   phone: text('phone'),
   conditions: text('conditions'),          // per-ward scheduling conditions (free text for AI/rules)
   active: boolean('active').default(true).notNull(),
+  // ---- กรอบเวลาแก้ไขข้อมูลหลังปิดเดือน (ตั้งค่าได้รายหน่วย) -------------------
+  // requirement 10.1 / 4.2: กรอบเวลาต้องเป็น "จำนวนวันทำการ" ที่ปรับได้
+  // (เช่น 1-3 หรือ 3-5 วัน) ไม่ใช่วันที่ตายตัวอย่าง "ถึงวันที่ 5".
+  // นับเป็นวันทำการของเดือนถัดไป โดยข้ามเสาร์-อาทิตย์และวันหยุดราชการ.
+  editWindowDays: integer('edit_window_days').default(5).notNull(),
+  // แจ้งเตือนล่วงหน้ากี่วันทำการก่อนครบกำหนด (requirement 10.2)
+  alertLeadDays: integer('alert_lead_days').default(2).notNull(),
+  // บังคับตัดสิทธิ์แก้ไขจริงเมื่อเลยกำหนด (ปิดไว้เป็นค่าตั้งต้นเพื่อไม่ให้
+  // กระทบข้อมูลย้อนหลัง/ช่วงทดลองใช้ — การเงินเปิดเมื่อเริ่มใช้งานจริง)
+  editWindowEnforced: boolean('edit_window_enforced').default(false).notNull(),
 }, (t) => ({ codeIdx: uniqueIndex('wards_code_idx').on(t.code) }));
+
+// ---- app settings / ค่าตั้งค่าระดับระบบ (key-value) --------------------------
+// ใช้เก็บค่าตั้งค่าที่การเงินปรับได้ เช่น พารามิเตอร์คำนวณภาษี/ประกันสังคม
+// (requirement 11.1) โดยไม่ต้องเพิ่มตารางใหม่ทุกครั้ง
+export const appSettings = pgTable('app_settings', {
+  key: text('key').primaryKey(),
+  value: jsonb('value').notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
 
 // ---- staffing requirements per ward (headcount by position/level & shift) ---
 export const staffingRequirements = pgTable('staffing_requirements', {
@@ -199,7 +218,10 @@ export const rosters = pgTable('rosters', {
   createdBy: integer('created_by').references(() => users.id),
   approvedBy: integer('approved_by').references(() => users.id),
   approvedAt: timestamp('approved_at'),
-  financeLocked: boolean('finance_locked').default(false).notNull(),  // finance closes the month (after day 5)
+  financeLocked: boolean('finance_locked').default(false).notNull(),  // การเงินปิดรอบเบิกของเดือนนี้
+  // การเงินเปิดรอบให้หน่วยงานแก้ไขเป็นกรณีพิเศษ แม้เลยกรอบเวลาไปแล้ว
+  // (requirement 4.2 / 10.1 — คู่กับ financeLocked แต่ทิศทางตรงกันข้าม)
+  editReopened: boolean('edit_reopened').default(false).notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (t) => ({ uniq: uniqueIndex('roster_ward_ym_idx').on(t.wardId, t.year, t.month) }));
 

@@ -35,6 +35,7 @@ import WardHoursView from './WardHoursView';
 import TimeScanView from './TimeScanView';
 import ORCasesView from './ORCasesView';
 import MyScheduleView from './MyScheduleView';
+import NotificationBell from './NotificationBell';
 import { applyRateSettings, applyShiftRates } from '../lib/useRosterData';
 
 type TabKey =
@@ -154,6 +155,9 @@ export default function AppShell() {
     .map((s) => ({ ...s, items: s.items.filter((i) => i.roles.includes(role)) }))
     .filter((s) => s.items.length > 0);
 
+  /** เมนูนี้แสดงให้บทบาทปัจจุบันหรือไม่ (ใช้เลือกหน้าปลายทางของการแจ้งเตือน) */
+  const canSee = (k: TabKey) => sections.some((s) => s.items.some((i) => i.key === k));
+
   const renderView = () => {
     if (loading || wardId == null) return <div className="grid place-items-center py-20 text-slate-400"><Loader2 className="w-6 h-6 animate-spin" /></div>;
     switch (tab) {
@@ -194,7 +198,7 @@ export default function AppShell() {
       <aside className={`no-print w-60 bg-[#0F3575] text-white flex flex-col shrink-0 fixed lg:static inset-y-0 z-30 transition-transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
         <div className="px-5 py-4 border-b border-white/10 flex items-center gap-2">
           <div className="w-9 h-9 rounded-lg bg-white/15 grid place-items-center font-bold">S</div>
-          <div><div className="font-bold text-sm leading-tight">Sati จัดเวร · OT</div><div className="text-[11px] text-white/60">รพ.มหาราชนครราชสีมา</div></div>
+          <div><div className="font-bold text-sm leading-tight">Sati เวร · ค่าตอบแทน</div><div className="text-[11px] text-white/60">รพ.มหาราชนครราชสีมา</div></div>
         </div>
         <nav className="flex-1 overflow-y-auto p-3 space-y-3">
           {sections.map((s, si) => (
@@ -248,6 +252,11 @@ export default function AppShell() {
               </div>
             );
           })()}
+          {/* แจ้งเตือนใกล้ครบกำหนด/เลยกำหนดปิดแก้ไข (requirement 10.2) */}
+          <NotificationBell
+            year={year} month={month} role={role} userWardId={user.wardId}
+            onOpenWard={(id) => { setWardId(id); setTab(canSee('finance') ? 'finance' : 'schedule'); }}
+          />
         </header>
         <div className="flex-1 p-4 sm:p-6 overflow-auto">{renderView()}</div>
       </main>

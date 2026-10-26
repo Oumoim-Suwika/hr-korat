@@ -102,6 +102,17 @@ CREATE TABLE IF NOT EXISTS wards (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS wards_code_idx ON wards (code);
 ALTER TABLE wards ADD COLUMN IF NOT EXISTS conditions text;
+-- กรอบเวลาแก้ไขข้อมูลรายหน่วย (requirement 10.1 / 4.2 / 10.2)
+ALTER TABLE wards ADD COLUMN IF NOT EXISTS edit_window_days integer NOT NULL DEFAULT 5;
+ALTER TABLE wards ADD COLUMN IF NOT EXISTS alert_lead_days integer NOT NULL DEFAULT 2;
+ALTER TABLE wards ADD COLUMN IF NOT EXISTS edit_window_enforced boolean NOT NULL DEFAULT false;
+
+-- ค่าตั้งค่าระดับระบบ (พารามิเตอร์ภาษี/ประกันสังคม ฯลฯ) — requirement 11.1
+CREATE TABLE IF NOT EXISTS app_settings (
+  key text PRIMARY KEY,
+  value jsonb NOT NULL,
+  updated_at timestamp NOT NULL DEFAULT now()
+);
 
 CREATE TABLE IF NOT EXISTS staffing_requirements (
   id serial PRIMARY KEY,
@@ -135,19 +146,6 @@ CREATE TABLE IF NOT EXISTS ward_shift_times (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS ward_shift_time_idx ON ward_shift_times (ward_id, code);
 
-CREATE TABLE IF NOT EXISTS time_scans (
-  id serial PRIMARY KEY,
-  ward_id integer NOT NULL REFERENCES wards(id) ON DELETE CASCADE,
-  employee_id integer NOT NULL REFERENCES employees(id),
-  year integer NOT NULL,
-  month integer NOT NULL,
-  day integer NOT NULL,
-  time_in text,
-  time_out text,
-  source text NOT NULL DEFAULT 'import'
-);
-CREATE UNIQUE INDEX IF NOT EXISTS scan_emp_ymd_idx ON time_scans (employee_id, year, month, day);
-
 CREATE TABLE IF NOT EXISTS or_procedures (
   id serial PRIMARY KEY,
   name text NOT NULL,
@@ -157,22 +155,6 @@ CREATE TABLE IF NOT EXISTS or_procedures (
   ot_bonus_per_hour double precision NOT NULL DEFAULT 0,
   active boolean NOT NULL DEFAULT true
 );
-
-CREATE TABLE IF NOT EXISTS or_cases (
-  id serial PRIMARY KEY,
-  ward_id integer NOT NULL REFERENCES wards(id),
-  year integer NOT NULL,
-  month integer NOT NULL,
-  day integer NOT NULL,
-  procedure_id integer REFERENCES or_procedures(id),
-  procedure_name text,
-  hours double precision NOT NULL DEFAULT 0,
-  participants jsonb NOT NULL,
-  note text,
-  created_by integer REFERENCES users(id),
-  created_at timestamp NOT NULL DEFAULT now()
-);
-CREATE INDEX IF NOT EXISTS orcase_scope_idx ON or_cases (ward_id, year, month);
 
 CREATE TABLE IF NOT EXISTS positions (
   id serial PRIMARY KEY,
@@ -215,6 +197,38 @@ CREATE TABLE IF NOT EXISTS users (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS users_email_idx ON users (email);
 
+-- NOTE: ตารางสองตารางนี้อ้างอิง employees / users จึงต้องสร้างหลังสองตารางนั้น
+-- (เดิมถูกวางไว้ก่อน ทำให้ bootstrap ฐานข้อมูลเปล่าใหม่ล้มด้วย
+--  'relation "employees" does not exist')
+CREATE TABLE IF NOT EXISTS time_scans (
+  id serial PRIMARY KEY,
+  ward_id integer NOT NULL REFERENCES wards(id) ON DELETE CASCADE,
+  employee_id integer NOT NULL REFERENCES employees(id),
+  year integer NOT NULL,
+  month integer NOT NULL,
+  day integer NOT NULL,
+  time_in text,
+  time_out text,
+  source text NOT NULL DEFAULT 'import'
+);
+CREATE UNIQUE INDEX IF NOT EXISTS scan_emp_ymd_idx ON time_scans (employee_id, year, month, day);
+
+CREATE TABLE IF NOT EXISTS or_cases (
+  id serial PRIMARY KEY,
+  ward_id integer NOT NULL REFERENCES wards(id),
+  year integer NOT NULL,
+  month integer NOT NULL,
+  day integer NOT NULL,
+  procedure_id integer REFERENCES or_procedures(id),
+  procedure_name text,
+  hours double precision NOT NULL DEFAULT 0,
+  participants jsonb NOT NULL,
+  note text,
+  created_by integer REFERENCES users(id),
+  created_at timestamp NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS orcase_scope_idx ON or_cases (ward_id, year, month);
+
 CREATE TABLE IF NOT EXISTS shift_types (
   code text PRIMARY KEY,
   name text NOT NULL,
@@ -254,6 +268,8 @@ CREATE TABLE IF NOT EXISTS rosters (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS roster_ward_ym_idx ON rosters (ward_id, year, month);
 ALTER TABLE rosters ADD COLUMN IF NOT EXISTS finance_locked boolean NOT NULL DEFAULT false;
+-- การเงินเปิดรอบให้แก้ไขเป็นกรณีพิเศษ แม้เลยกรอบเวลา (requirement 4.2 / 10.1)
+ALTER TABLE rosters ADD COLUMN IF NOT EXISTS edit_reopened boolean NOT NULL DEFAULT false;
 
 CREATE TABLE IF NOT EXISTS roster_cells (
   id serial PRIMARY KEY,

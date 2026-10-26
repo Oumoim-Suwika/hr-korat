@@ -46,7 +46,21 @@ export interface AuthUser {
   id: number; email: string; displayName: string;
   role: UserRole; wardId: number | null; employeeId: number | null;
 }
-export interface Ward { id: number; code: string; name: string; building?: string; phone?: string; }
+export interface Ward {
+  id: number; code: string; name: string; building?: string; phone?: string; conditions?: string | null;
+  /** กรอบเวลาแก้ไขข้อมูลรายหน่วย (requirement 10.1 / 4.2) */
+  editWindowDays?: number; alertLeadDays?: number; editWindowEnforced?: boolean;
+}
+
+/** สถานะกรอบเวลาแก้ไขข้อมูลของหน่วยงาน — คำนวณจาก server (ที่เดียว) */
+export type EditWindowState = 'before' | 'open' | 'due_soon' | 'closed';
+export interface EditWindowInfo {
+  wardId: number; wardName: string; year: number; month: number;
+  editWindowDays: number; alertLeadDays: number; enforced: boolean;
+  windowYear: number; windowMonth: number;
+  deadlineDay: number; deadlineISO: string;
+  workingDaysLeft: number; state: EditWindowState; message: string;
+}
 export interface Employee {
   id: number; prefix?: string; firstName: string; lastName?: string;
   role: string; positionText?: string; employeeType?: string; paymentType: string;
@@ -65,6 +79,10 @@ export interface WorkingCalendar {
 export interface Roster {
   id: number; wardId: number; year: number; month: number;
   status: 'draft' | 'pending_approval' | 'approved'; note?: string | null;
+  /** การเงินปิดรอบเบิกของเดือนนี้แล้ว */
+  financeLocked?: boolean;
+  /** การเงินเปิดรอบให้หน่วยงานแก้ไขเป็นกรณีพิเศษ แม้เลยกรอบเวลา */
+  editReopened?: boolean;
 }
 export interface RosterCell {
   id?: number; employeeId: number; day: number;
@@ -106,6 +124,9 @@ export const api = {
   approveRoster: (id: number) => request<{ roster: Roster }>('POST', `/api/rosters/${id}/approve`),
   listRosters: (wardId?: number) => request<{ rosters: any[] }>('GET', `/api/rosters/list${wardId ? `?wardId=${wardId}` : ''}`).then((r) => r.rosters),
   financeLock: (id: number, locked: boolean) => request<{ roster: Roster }>('POST', `/api/rosters/${id}/finance-lock`, { locked }).then((r) => r.roster),
+  /** การเงินเปิด/ยกเลิกการเปิดรอบให้หน่วยงานแก้ไขเป็นกรณีพิเศษ (requirement 4.2) */
+  reopenRosterEdit: (id: number, reopened: boolean) =>
+    request<{ roster: Roster }>('POST', `/api/rosters/${id}/reopen`, { reopened }).then((r) => r.roster),
 
   getRequests: (wardId: number, year: number, month: number) =>
     request<{ requests: RequestItem[] }>('GET', `/api/requests?wardId=${wardId}&year=${year}&month=${month}`).then((r) => r.requests),
@@ -125,8 +146,26 @@ export const api = {
   // wards CRUD
   createWard: (w: { code: string; name: string; building?: string | null; phone?: string | null; conditions?: string | null }) =>
     request<{ ward: Ward }>('POST', '/api/wards', w).then((r) => r.ward),
-  updateWard: (id: number, w: Partial<{ name: string; building: string | null; phone: string | null; conditions: string | null }>) =>
-    request<{ ward: Ward }>('PATCH', `/api/wards/${id}`, w).then((r) => r.ward),
+  updateWard: (id: number, w: Partial<{
+    name: string; building: string | null; phone: string | null; conditions: string | null;
+    editWindowDays: number; alertLeadDays: number; editWindowEnforced: boolean;
+  }>) => request<{ ward: Ward }>('PATCH', `/api/wards/${id}`, w).then((r) => r.ward),
+
+  // กรอบเวลาแก้ไขข้อมูล (requirement 10.1 / 4.2 / 10.2)
+  getEditWindow: (wardId: number, year: number, month: number) =>
+    request<{ window: EditWindowInfo }>('GET', `/api/edit-window?wardId=${wardId}&year=${year}&month=${month}`).then((r) => r.window),
+  getAllEditWindows: (year: number, month: number) =>
+    request<{ windows: EditWindowInfo[] }>('GET', `/api/edit-window/all?year=${year}&month=${month}`).then((r) => r.windows),
+
+  // นำเข้าคำขอลา/ไปราชการแบบ bulk จากไฟล์ CSV (requirement 11.2)
+  importLeaveRequests: (payload: {
+    wardId: number; year: number; month: number; autoApprove: boolean;
+    items: { employeeId: number; day: number; toDay?: number | null; reason?: string | null }[];
+  }) => request<{ imported: number; applied: number }>('POST', '/api/requests/import', payload),
+
+  // ค่าตั้งค่าระดับระบบ (พารามิเตอร์ภาษี/ประกันสังคม — requirement 11.1)
+  getAppSetting: <T,>(key: string) => request<{ value: T | null }>('GET', `/api/app-settings/${key}`).then((r) => r.value),
+  setAppSetting: <T,>(key: string, value: T) => request<{ value: T }>('PUT', `/api/app-settings/${key}`, { value }).then((r) => r.value),
 
   // employees create / import
   createEmployee: (e: any) => request<{ employee: Employee }>('POST', '/api/employees', e).then((r) => r.employee),

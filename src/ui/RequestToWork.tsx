@@ -8,16 +8,16 @@ import { lineForWard } from './ClaimDocuments';
  * บันทึกข้อความ "ขออนุมัติขึ้นปฏิบัติงานนอกเวลาราชการและวันหยุดราชการ"
  * (ฟอร์มขอขึ้น — เสนอก่อนขึ้นปฏิบัติงานเดือนถัดไป) ตามเทมเพลต toSATI แยกตามสายงาน.
  */
-export default function RequestToWork({ wardName, wardPhone, month, year, employees, signers }: {
-  wardName: string; wardPhone?: string; month: number; year: number; employees: Employee[]; signers: RosterSigner[];
+// `signers` ยังรับไว้ในสัญญาของคอมโพเนนต์ (ผู้เรียกส่งมาให้) แต่ไม่ถูกนำมาพิมพ์
+// ใต้ช่องลงชื่ออีกต่อไป ตาม requirement ข้อ 7.2
+export default function RequestToWork({ wardName, wardPhone, month, year, employees }: {
+  wardName: string; wardPhone?: string; month: number; year: number; employees: Employee[]; signers?: RosterSigner[];
 }) {
   const line = lineForWard(employees);
   const unit = REIMBURSEMENT_UNITS[line];
   const m = THAI_MONTHS[month - 1];
   const y = toThaiDigits(year);
   const isNursing = line === 'พยาบาล';
-  const controller = signers.find((s) => s.signerRole === 'controller');
-  const approver = signers.find((s) => s.signerRole === 'approver');
 
   const paper: React.CSSProperties = { background: '#fff', border: '1px solid #cbd5e1', borderRadius: 6, padding: '15mm', maxWidth: '190mm', margin: '0 auto', lineHeight: 1.6 };
 
@@ -45,17 +45,19 @@ export default function RequestToWork({ wardName, wardPhone, month, year, employ
       <p style={{ textIndent: '2.5em', fontSize: 15 }}>{body2}</p>
       <p style={{ textIndent: '2.5em', fontSize: 15 }}>จึงเรียนมาเพื่อโปรดพิจารณาอนุมัติ</p>
 
+      {/* ช่องลงชื่อ: ตาม requirement ข้อ 7.2 ให้มีเฉพาะ "(ลงชื่อ)...." และวงเล็บเปล่า
+          ไม่พิมพ์ชื่อหรือตำแหน่งกำกับ (ผู้ลงนามเขียนด้วยมือ) — รูปแบบเดียวกับชุดเบิก
+          OT / บ่ายดึก / รายวัน สายพยาบาลคงไว้ 3 ช่องตามลำดับการเสนอลงนาม */}
       {isNursing ? (
         <div style={{ marginTop: 30, fontSize: 15, textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 22 }}>
-          <div><div>(ลงชื่อ) ..................................................</div><div>( {controller?.name ?? '.........................................'} )</div><div>{controller?.title ?? 'หัวหน้าหอผู้ป่วย'}</div></div>
-          <div><div>(ลงชื่อ) ..................................................</div><div>( ......................................... )</div><div>หัวหน้ากลุ่มงานการพยาบาล</div></div>
-          <div><div>(ลงชื่อ) ..................................................</div><div>( {approver?.name ?? '.........................................'} )</div><div>{approver?.title ?? 'หัวหน้าพยาบาล'}</div></div>
+          <div><div>(ลงชื่อ) ..................................................</div><div>( ......................................... )</div></div>
+          <div><div>(ลงชื่อ) ..................................................</div><div>( ......................................... )</div></div>
+          <div><div>(ลงชื่อ) ..................................................</div><div>( ......................................... )</div></div>
         </div>
       ) : (
         <div style={{ textAlign: 'center', marginTop: 40, fontSize: 15 }}>
           <div>(ลงชื่อ) ..................................................</div>
-          <div>( {controller?.name ?? '.........................................'} )</div>
-          <div>{controller?.title ?? 'หัวหน้ากลุ่มงาน'}</div>
+          <div>( ......................................... )</div>
         </div>
       )}
     </div>

@@ -26,7 +26,7 @@ export default function Login() {
       <div className="w-full max-w-sm bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
         <div className="flex flex-col items-center mb-6">
           <div className="w-12 h-12 rounded-xl bg-[#0F3575] text-white grid place-items-center font-bold text-lg">S</div>
-          <h1 className="mt-3 text-xl font-bold text-slate-800">Sati จัดเวร · OT</h1>
+          <h1 className="mt-3 text-xl font-bold text-slate-800">Sati เวร · ค่าตอบแทน</h1>
           <p className="text-sm text-slate-500">โรงพยาบาลมหาราชนครราชสีมา</p>
         </div>
 

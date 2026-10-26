@@ -1,5 +1,6 @@
 /**
- * Role-based access control (RBAC) for Sati Shift & OT Audit.
+ * Role-based access control (RBAC) for Sati Shift & Compensation
+ * (Sati เวร · ค่าตอบแทน).
  *
  * Mirrors the real hospital workflow:
  *  - staff       พนักงาน/เจ้าหน้าที่ — ดูเวรตัวเอง, ขอเบิก/ยื่นปริมาณงานของตัวเอง
