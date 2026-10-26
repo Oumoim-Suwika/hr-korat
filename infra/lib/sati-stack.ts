@@ -79,7 +79,9 @@ export class SatiStack extends cdk.Stack {
       projectRoot: repoRoot,
       depsLockFilePath: path.join(repoRoot, 'server', 'package-lock.json'),
       handler: 'handler',
-      runtime: lambda.Runtime.NODEJS_20_X,
+      // nodejs20.x deprecated 30 เม.ย. 2569 (สร้างใหม่ไม่ได้ 1 ก.พ. 2570,
+      // อัปเดตไม่ได้ 3 มี.ค. 2570) จึงย้ายมา nodejs24.x
+      runtime: lambda.Runtime.NODEJS_24_X,
       memorySize: 1024,
       timeout: cdk.Duration.seconds(30),
       vpc,
@@ -93,7 +95,8 @@ export class SatiStack extends cdk.Stack {
       },
       bundling: {
         format: OutputFormat.ESM,
-        target: 'node20',
+        // ต้องตรงกับ runtime ด้านบน
+        target: 'node24',
         sourceMap: true,
         // In Lambda runtime / not needed in prod:
         // Dev-only DB driver (PGlite) must stay external so its static import
