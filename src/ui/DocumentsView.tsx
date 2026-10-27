@@ -63,7 +63,11 @@ export default function DocumentsView({ wardName, wardPhone, wardId, year, month
 
   // Export the current packet as an editable Word (.doc) file — attachable.
   const downloadDoc = () => {
-    const inner = (previewRef.current?.innerHTML ?? '')
+    // ตัดองค์ประกอบที่เป็นของหน้าจอเท่านั้น (.no-print เช่น ป้าย "เอกสารแนบ")
+    // ออกก่อน ไม่ให้ติดไปในไฟล์ Word
+    const clone = previewRef.current?.cloneNode(true) as HTMLElement | undefined;
+    clone?.querySelectorAll('.no-print').forEach((el) => el.remove());
+    const inner = (clone?.innerHTML ?? '')
       .replaceAll('/kruth.png', 'https://hr-mnrh.app.sati.co.th/kruth.png');
     const full = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><title>บันทึกข้อความ</title><style>
       @font-face{font-family:'TH Sarabun IT9';src:url('https://hr-mnrh.app.sati.co.th/fonts/THSarabunIT9.ttf') format('truetype');}
@@ -92,10 +96,27 @@ export default function DocumentsView({ wardName, wardPhone, wardId, year, month
     </div>
   );
 
+  // หัวข้อกำกับบนหน้าจอว่าตารางเวรด้านล่างเป็น "เอกสารแนบ" ของชุดนี้
+  // (ไม่พิมพ์ลงกระดาษ — กระดาษมีหัวเอกสารของตัวเองอยู่แล้ว)
+  const attachedLabel = (
+    <div className="no-print text-xs text-slate-500 bg-slate-200/70 rounded-md px-3 py-1.5 my-2">
+      เอกสารแนบของชุดนี้ — ตารางเวร{roster?.status === 'approved' ? ' (ฉบับเคลียร์เวรแล้ว · อนุมัติแล้ว)' : ' (ยังไม่อนุมัติ จึงยังไม่ขึ้นป้ายฉบับเคลียร์เวร)'} · จะพิมพ์ต่อท้ายชุดนี้
+    </div>
+  );
+  // ตารางเวรแนบท้ายต้องเห็นทั้งบนหน้าจอและในไฟล์พิมพ์ (requirement ข้อ 6.4)
+  // เดิมแนบเฉพาะตอนพิมพ์ ทำให้ตรวจสอบจากหน้าจอไม่ได้และถูกรายงานว่า "ยังไม่มี"
+  const withSchedule = (doc: React.ReactNode, forPrint: boolean) => (
+    <>
+      <div style={forPrint ? { pageBreakAfter: 'always' } : undefined}>{doc}</div>
+      {!forPrint && attachedLabel}
+      {schedule}
+    </>
+  );
+
   const renderPacket = (forPrint: boolean) => {
-    if (tab === 'request') return <><div style={forPrint ? { pageBreakAfter: 'always' } : undefined}><RequestToWork wardName={wardName} wardPhone={wardPhone} month={month} year={year} employees={employees} signers={signers} /></div>{forPrint && schedule}</>;
-    if (tab === 'ot') return <><div style={forPrint ? { pageBreakAfter: 'always' } : undefined}><ClaimDocuments variant="ot" wardName={wardName} wardPhone={wardPhone} month={month} year={year} employees={employees} cells={cells} days={days} signers={signers} edits={edits} /></div>{forPrint && schedule}</>;
-    if (tab === 'bd') return <><div style={forPrint ? { pageBreakAfter: 'always' } : undefined}><ClaimDocuments variant="bd" wardName={wardName} wardPhone={wardPhone} month={month} year={year} employees={employees} cells={cells} days={days} signers={signers} /></div>{forPrint && schedule}</>;
+    if (tab === 'request') return withSchedule(<RequestToWork wardName={wardName} wardPhone={wardPhone} month={month} year={year} employees={employees} signers={signers} />, forPrint);
+    if (tab === 'ot') return withSchedule(<ClaimDocuments variant="ot" wardName={wardName} wardPhone={wardPhone} month={month} year={year} employees={employees} cells={cells} days={days} signers={signers} edits={edits} />, forPrint);
+    if (tab === 'bd') return withSchedule(<ClaimDocuments variant="bd" wardName={wardName} wardPhone={wardPhone} month={month} year={year} employees={employees} cells={cells} days={days} signers={signers} />, forPrint);
     return <DailyForms wardName={wardName} wardPhone={wardPhone} month={month} year={year} ceYear={ceYear} days={days} employees={employees} cells={cells} signers={signers} />;
   };
 

@@ -135,6 +135,18 @@ export default function FinanceView({ wardName, wardId, year, month }: { wardNam
           </div>
         )}
 
+        {/* โหมด "ทุกกลุ่มงาน" ไม่มีกรอบเวลาให้แสดง เพราะตั้งค่าแยกรายหน่วย
+            จึงบอกทางให้ผู้ใช้หาหน้าตั้งค่าเจอ (เดิมหายทั้งก้อน หาไม่เจอ) */}
+        {!win && (
+          <div className="flex items-center gap-2 text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
+            <AlarmClock className="w-3.5 h-3.5 shrink-0" />
+            <span>
+              <b>กรอบเวลาแก้ไขข้อมูลตั้งค่าแยกตามกลุ่มงาน</b> — เลือกกลุ่มงานจากช่องด้านบน (ไม่ใช่ "ทุกกลุ่มงาน")
+              เพื่อดูวันปิดรอบและกดปุ่ม "ตั้งค่ากรอบเวลา" สำหรับกำหนดจำนวนวันทำการ
+            </span>
+          </div>
+        )}
+
         {win && showWinCfg && (
           <EditWindowSettings win={win} onSaved={() => { setShowWinCfg(false); loadWindow(); }} />
         )}
