@@ -1,11 +1,11 @@
 import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import {
   api, type Ward, type Employee, type ShiftType, type WorkingCalendar,
-  type RosterCell, type Roster, type RosterSigner, ApiError,
+  type RosterCell, type Roster, type RosterSigner, type EditWindowInfo, ApiError,
 } from '../api/client';
 import { SHIFT_TYPES as SHIFT_META, THAI_MONTHS, THAI_DAYS_SHORT, normalizeShiftCode } from '../data';
 import type { UserRole } from '../api/client';
-import { Lock, LockOpen, Save, Send, CheckCircle2, Eraser, Loader2, Users, Printer, Wand2, Upload, UserPlus, ShieldAlert, AlertTriangle } from 'lucide-react';
+import { Lock, LockOpen, Save, Send, CheckCircle2, Eraser, Loader2, Users, Printer, Wand2, Upload, UserPlus, ShieldAlert, AlertTriangle, AlarmClock } from 'lucide-react';
 import PrintableRoster from './PrintableRoster';
 import { autoSchedule, type ScheduleResult, type StaffingItem } from '../lib/autoSchedule';
 import { effectiveWardHours } from '../lib/useRosterData';
@@ -38,6 +38,8 @@ export default function ScheduleView({ role, wards, wardId, year, month }: Props
   const [shiftTypes, setShiftTypes] = useState<ShiftType[]>([]);
   const [cells, setCells] = useState<CellMap>({});
   const [roster, setRoster] = useState<Roster | null>(null);
+  // กรอบเวลาแก้ไขข้อมูลของหน่วยนี้ (อ่านอย่างเดียว — ตั้งค่าที่หน้าการเงิน)
+  const [editWindow, setEditWindow] = useState<EditWindowInfo | null>(null);
   const [calendar, setCalendar] = useState<WorkingCalendar | null>(null);
   const [signers, setSigners] = useState<RosterSigner[]>([]);
   const [noteText, setNoteText] = useState('');
@@ -109,6 +111,15 @@ export default function ScheduleView({ role, wards, wardId, year, month }: Props
   }, [wardId, year, month]);
 
   useEffect(() => { load(); }, [load]);
+
+  // โหลดกรอบเวลาแก้ไขแยกจาก load() เพื่อให้ตารางเวรยังใช้ได้แม้ส่วนนี้ล้มเหลว
+  useEffect(() => {
+    let alive = true;
+    api.getEditWindow(wardId, year, month)
+      .then((w) => { if (alive) setEditWindow(w); })
+      .catch(() => { if (alive) setEditWindow(null); });
+    return () => { alive = false; };
+  }, [wardId, year, month]);
 
   const isExternal = (id: number) => externalIds.includes(id) && !employees.some((w) => w.id === id);
   const externalEmployees = useMemo(() => allEmployees.filter((e) => externalIds.includes(e.id) && !employees.some((w) => w.id === e.id)), [allEmployees, externalIds, employees]);
@@ -337,6 +348,23 @@ export default function ScheduleView({ role, wards, wardId, year, month }: Props
       )}
 
       {toast && <div className={`text-sm rounded-lg px-3 py-2 ${toast.kind === 'ok' ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>{toast.msg}</div>}
+
+      {/* กรอบเวลาแก้ไขข้อมูลของหน่วยนี้ (requirement 10.1 / 10.2) — แสดงแบบอ่าน
+          อย่างเดียวให้ทุกบทบาทเห็น เพราะเจ้าหน้าที่หน่วยงานต้องรู้กำหนดของตัวเอง
+          ส่วนการแก้ค่าอยู่ที่หน้า "การเงิน & เบิกจ่าย" (สิทธิ์การเงิน) */}
+      {editWindow && (
+        <div className={`no-print flex flex-wrap items-center gap-2 text-sm rounded-lg px-3 py-2 border ${
+          editWindow.state === 'closed' ? 'bg-rose-50 border-rose-200 text-rose-700'
+          : editWindow.state === 'due_soon' ? 'bg-amber-50 border-amber-200 text-amber-700'
+          : 'bg-slate-50 border-slate-200 text-slate-600'}`}>
+          <AlarmClock className="w-4 h-4 shrink-0" />
+          <span>{editWindow.message}</span>
+          <span className="text-xs opacity-75">
+            · กรอบที่ตั้งไว้ {editWindow.editWindowDays} วันทำการ
+            {editWindow.enforced ? ' · บังคับตัดสิทธิ์แก้ไขเมื่อเลยกำหนด' : ' · แจ้งเตือนเท่านั้น ยังไม่บังคับ'}
+          </span>
+        </div>
+      )}
 
       {/* AI check: ขอขึ้น ↔ ลงเวร/เบิก mismatch (alerts the scheduler) */}
       {claimIssues.length > 0 && (

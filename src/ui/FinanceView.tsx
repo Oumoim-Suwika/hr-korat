@@ -221,8 +221,28 @@ function EditWindowSettings({ win, onSaved }: { win: EditWindowInfo; onSaved: ()
   };
 
   const f = 'text-sm border border-slate-300 rounded-lg px-3 py-1.5 w-full';
+  // ปุ่มเลือกเร็วตามช่วงที่โรงพยาบาลระบุไว้ (1-3 หรือ 3-5 วันทำการ)
+  // เพื่อให้เห็นชัดว่าค่านี้ "ปรับได้" ไม่ใช่วันที่ตายตัว
+  const PRESETS: { label: string; days: number; lead: number }[] = [
+    { label: '1 วันทำการ', days: 1, lead: 0 },
+    { label: '2 วันทำการ', days: 2, lead: 1 },
+    { label: '3 วันทำการ', days: 3, lead: 1 },
+    { label: '5 วันทำการ', days: 5, lead: 2 },
+  ];
   return (
     <div className="border-t border-slate-200 pt-3 space-y-3">
+      <div>
+        <div className="text-xs text-slate-500 mb-1.5">เลือกเร็ว (ช่วงที่โรงพยาบาลระบุ: 1-3 หรือ 3-5 วันทำการ)</div>
+        <div className="flex flex-wrap gap-1.5">
+          {PRESETS.map((p) => (
+            <button key={p.days} type="button" onClick={() => { setDays(p.days); setLead(p.lead); }}
+              className={`text-xs px-2.5 py-1 rounded-lg border transition ${days === p.days ? 'bg-[#0F3575] text-white border-[#0F3575]' : 'border-slate-300 text-slate-600 hover:bg-slate-50'}`}>
+              {p.label}
+            </button>
+          ))}
+          <span className="text-[11px] text-slate-400 self-center ml-1">หรือพิมพ์ค่าเองด้านล่าง (1-20)</span>
+        </div>
+      </div>
       <div className="grid sm:grid-cols-3 gap-3">
         <label className="text-sm">
           <span className="block text-slate-500 mb-1">กรอบแก้ไข (วันทำการ)</span>
